@@ -157,7 +157,8 @@ terra_firmware/
   tools/terra_fw/        # Python: container, CRC, .smp codec, CLI, tests
   symbols/               # per-firmware-version symbol maps
   firmware/              # official *.smf / *.smp (git-ignored) + KNOWN.md hashes
-  reference/             # STM32H743.svd, RM0433 (pdf ignored), README
+  reference/             # STM32H743.svd, RM0433.pdf, README
+  ghidra/                # local Ghidra project (git-ignored)
   third_party/STM32CubeH7/   # git submodule (HAL source for matching decompiled code)
   build/                 # generated (app.bin, decompiler dumps), git-ignored
   sdk/ mods/ modkit/     # planned (Phases 3-5)

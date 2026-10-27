@@ -9,9 +9,7 @@ __pycache__/
 .venv/
 .DS_Store
 # Local Ghidra project (binary, machine-specific, contains analysis of SOMA's code)
-Terra.gpr
-Terra.lock
-Terra.lock~
-Terra.rep/
-# Large third-party reference docs, fetch locally (see reference/README.md)
-reference/*.pdf
+ghidra/Terra.gpr
+ghidra/Terra.lock
+ghidra/Terra.lock~
+ghidra/Terra.rep/
