@@ -155,6 +155,30 @@ tim3_isr_notes = """clears TIM3_SR, rewrites TIM3_ARR from *0x20003384 (variable
 floats (DTCM 0x20000A04/A08 * scale) to 0x30000074/0x30000078. That 2-word buffer is handed to a
 DMA/peripheral start routine from main(): FUN_08045436(handle 0x2001BF80, buf 0x30000074, 2)."""
 
+[[function]]
+name = "i2s1_init"
+address = 0x08044E64
+status = "confirmed"
+notes = """HAL_I2S_Init on SPI1/I2S1 (0x40013000), handle 0x2001BF80: master TX (mode field 4), Philips standard,
+MCLK output enabled (0x02000000), AudioFreq = 0xAC44 = 44100 Hz, MasterKeepIOState set (0x4000)."""
+
+[[function]]
+name = "hal_i2s_init"
+address = 0x080452F4
+status = "inferred"
+
+[[function]]
+name = "i2s_transmit_dma_start"
+address = 0x08045436
+status = "confirmed"
+notes = """HAL_I2S_Transmit_DMA-style: DMA(src=pData, dst=I2S_TXDR = base+0x20, size words); sets CFG1.TXDMAEN (bit 15),
+SPE (CR1 bit 0) and CSTART (CR1 bit 9). main() calls it with buffer 0x30000074, size 2 words = one stereo frame."""
+
+[audio_path]
+summary = """AUDIO = I2S1 master TX at 44.1 kHz (MCLK out) to an external DAC/codec. A TIM3 interrupt in ITCM (0x9730)
+computes the next stereo frame as floats, converts to int32 and stores it at 0x30000074/0x30000078; DMA feeds
+that 2-word buffer to SPI1_TXDR. TIM3 ARR is rewritten each tick (variable period)."""
+
 [peripherals_seen]
 # Peripheral base addresses found in literal pools (count of references). Not proof of use by itself.
 used_for_sure = ["USART1 (MIDI, 31250 baud)", "I2C1", "I2C2", "SPI2 (init at 0x08044FAC)", "FMC (BCR1=0x30D2)", "RCC", "FLASH"]
@@ -164,7 +188,7 @@ not_referenced = ["SAI1", "SAI2", "SAI4", "USB OTG (no literal found)"]
 # The USB-stick update is the BOOTLOADER's job; this app has no USB host code visible by base address.
 
 [open_questions]
-audio = "OPEN: TIM3 ISR (vec 45) jumps into ITCM at 0x00009730; locate the ITCM image in flash via the scatter table"
+audio = "MOSTLY ANSWERED: see [audio_path]. Still open: how DMA runs (circular?), whether TIM3 is the sample clock, and the engine call tree inside ITCM"
 presets = "ANSWERED: external I2C EEPROM at 0xA0; still need the preset layout inside it and how .smp files map to it"
 sensors = "ANSWERED (mostly): FUN_0803AAFE reads 2 x 12 touch channels over I2C1/I2C2 via DMA"
 
