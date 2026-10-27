@@ -162,33 +162,33 @@ sensors = "ANSWERED (mostly): FUN_0803AAFE reads 2 x 12 touch channels over I2C1
 vector = 30
 irqn = 14
 handler = 0x08051609
-st_h7_name = "DMA1_Stream3 (guess)"
+st_h7_name = "DMA1_Stream3"  # confirmed vs SVD (DMA_STR3)
 notes = "not yet a function in Ghidra; vectors at 0x08020000 point at 4-byte stubs"
 [[irq]]
 vector = 45
 irqn = 29
 handler = 0x0805161F
-st_h7_name = "TIM3 (guess)"
+st_h7_name = "TIM3"  # confirmed vs SVD
 [[irq]]
 vector = 47
 irqn = 31
 handler = 0x08051623
-st_h7_name = "I2C1_EV (guess)"
+st_h7_name = "I2C1_EV"  # confirmed vs SVD
 [[irq]]
 vector = 49
 irqn = 33
 handler = 0x080516F3
-st_h7_name = "I2C2_EV (guess)"
+st_h7_name = "I2C2_EV"  # confirmed vs SVD
 [[irq]]
 vector = 72
 irqn = 56
 handler = 0x080517C3
-st_h7_name = "DMA2_Stream0 (guess)"
+st_h7_name = "DMA2_Stream0"  # confirmed vs SVD (DMA2_STR0)
 [[irq]]
 vector = 73
 irqn = 57
 handler = 0x08051803
-st_h7_name = "DMA2_Stream1 (guess)"
+st_h7_name = "DMA2_Stream1"  # confirmed vs SVD (DMA2_STR1)
 
 [free_resources]
 # Flash after the image: 0x08059A54..0x0805FFFF is the rest of sector 3. Sectors 4+ unknown:
