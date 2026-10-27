@@ -145,6 +145,16 @@ copied there by the scatter loader. 'Fast code' placed in ITCM is the best candi
 The flash source of that ITCM image has NOT been located yet (scatter table at 0x08051BD8..0x08051C60 needs a
 careful parse)."""
 
+[itcm]
+# Reproduce with: python tools/scatter_emu.py build/app.bin build/ram   (Unicorn, runs scatterload at 0x08051B8C)
+# ITCM image (44,888 bytes at 0x00000000) is copied from flash by the scatter loader. It holds the
+# engine code: float/VFP heavy, touches only TIM3 SR/ARR, GPIOA IDR, GPIOD BSRR directly.
+tim3_isr = 0x00009730   # confirmed: vec 45 -> veneer 0x0805161E -> ITCM 0x9730
+tim3_isr_notes = """clears TIM3_SR, rewrites TIM3_ARR from *0x20003384 (variable tick period), pulses GPIOD pin 14
+(probably a CPU-load/debug pin), decrements software timers, and writes two int32 values converted from
+floats (DTCM 0x20000A04/A08 * scale) to 0x30000074/0x30000078. That 2-word buffer is handed to a
+DMA/peripheral start routine from main(): FUN_08045436(handle 0x2001BF80, buf 0x30000074, 2)."""
+
 [peripherals_seen]
 # Peripheral base addresses found in literal pools (count of references). Not proof of use by itself.
 used_for_sure = ["USART1 (MIDI, 31250 baud)", "I2C1", "I2C2", "SPI2 (init at 0x08044FAC)", "FMC (BCR1=0x30D2)", "RCC", "FLASH"]
