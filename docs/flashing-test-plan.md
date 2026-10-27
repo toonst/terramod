@@ -16,10 +16,10 @@ application (that is exactly what stage 2 would show, so keep the stock stick re
 | Stage | File (build output in `dist/`) | Expected |
 |---|---|---|
 | 0 | stock `TERRA_V1.7.smf` | updater runs, instrument unchanged. Baseline: confirms your procedure and stick work |
-| 1 | `dist/stage1/TERRA_V1.7.smf` (stock + 64 bytes of 0xFF) | update succeeds, Terra behaves exactly as stock. Tests: longer image + our CRC |
-| 2 | `dist/stage2/TERRA_V1.7.smf` | update succeeds; behaviour as stock except hold test below |
+| 1 | `dist/TERRA_V1.7_padtest/TERRA_V1.7_padtest.smf` (stock + 64 bytes of 0xFF) | update succeeds, Terra behaves exactly as stock. Tests: longer image + our CRC |
+| 2 | `dist/TERRA_V1.7_holdmidi/TERRA_V1.7_holdmidi.smf` | update succeeds; behaviour as stock except hold test below |
 
-The updater is picky about the name: the stock name `TERRA_V1.7.smf` works; a `stage1_...` prefix was not recognised (no H blink). Keep the stock name, one file in the root.
+Naming (verified on the Terra): `TERRA_V<version>_<suffix>.smf` is recognised (e.g. `TERRA_V1.7_holdmidi.smf`); a `stage1_` prefix is not. One firmware file per stick root; `terra-fw patch ... --auto-name` builds a folder per image.
 **If stage 1 fails** (LEDs blink incessantly, or "all six LEDs light"): stop. Re-flash stock and tell me what you saw;
 the mod then needs a different place for its code (dead space inside the image).
 

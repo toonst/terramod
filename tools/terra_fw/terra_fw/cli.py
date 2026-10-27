@@ -16,7 +16,9 @@ def main(argv=None):
     s.add_argument("src"); s.add_argument("out")
     s.add_argument("--like", required=True, help="original file to copy the header field from")
     s = sub.add_parser("patch", help="apply mod(s) to a stock .smf")
-    s.add_argument("smf"); s.add_argument("out"); s.add_argument("mods", nargs="+")
+    s.add_argument("smf"); s.add_argument("out", help="output .smf, or with --auto-name a directory"); s.add_argument("mods", nargs="+")
+    s.add_argument("--auto-name", action="store_true",
+                   help="write OUT/TERRA_V<fw>_<mod>[+<mod>]/TERRA_V<fw>_<mod>[+<mod>].smf (one firmware per USB-stick folder)")
     s = sub.add_parser("padtest", help="stock .smf + 64 bytes of 0xFF (tests that a longer image is accepted)")
     s.add_argument("smf"); s.add_argument("out")
     a = ap.parse_args(argv)
@@ -34,7 +36,13 @@ def main(argv=None):
             print(f"    presets used: {sum(s is not None for s in b.slots)}/{presets.SLOTS}")
     elif a.cmd == "patch":
         from . import patcher
-        out, placed = patcher.apply(open(a.smf, "rb").read(), [patcher.load_mod(m) for m in a.mods])
+        import os
+        mods = [patcher.load_mod(m) for m in a.mods]
+        out, placed = patcher.apply(open(a.smf, "rb").read(), mods)
+        if a.auto_name:
+            name = f"TERRA_V{mods[0]['mod']['fw_version']}_" + "+".join(m["mod"]["id"] for m in mods)
+            os.makedirs(os.path.join(a.out, name), exist_ok=True)
+            a.out = os.path.join(a.out, name, name + ".smf")
         open(a.out, "wb").write(out)
         for p in placed:
             print(f"hook {p.at:#010x} -> trampoline {p.tramp:#010x} ({p.size} bytes)")

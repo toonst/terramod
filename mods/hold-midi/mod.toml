@@ -2,6 +2,7 @@
 [mod]
 id = "hold-midi"
 version = "0.1.0"
+fw_version = "1.7"
 targets = ["70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572"]   # TERRA_V1.7.smf
 
 # Note mode: voice key-down flag pointer is r5; hold flag is +0x60 bytes away.
