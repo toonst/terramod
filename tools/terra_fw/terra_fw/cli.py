@@ -40,7 +40,7 @@ def main(argv=None):
         mods = [patcher.load_mod(m) for m in a.mods]
         out, placed = patcher.apply(open(a.smf, "rb").read(), mods)
         if a.auto_name:
-            name = f"TERRA_V{mods[0]['mod']['fw_version']}_" + "+".join(m["mod"]["id"] for m in mods)
+            name = f"TERRA_V{mods[0]['mod']['fw_version']}_" + "+".join(m["mod"]["id"].replace("-", "") for m in mods)
             os.makedirs(os.path.join(a.out, name), exist_ok=True)
             a.out = os.path.join(a.out, name, name + ".smf")
         open(a.out, "wb").write(out)

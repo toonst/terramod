@@ -19,7 +19,7 @@ application (that is exactly what stage 2 would show, so keep the stock stick re
 | 1 | `dist/TERRA_V1.7_padtest/TERRA_V1.7_padtest.smf` (stock + 64 bytes of 0xFF) | update succeeds, Terra behaves exactly as stock. Tests: longer image + our CRC |
 | 2 | `dist/TERRA_V1.7_holdmidi/TERRA_V1.7_holdmidi.smf` | update succeeds; behaviour as stock except hold test below |
 
-Naming (verified on the Terra): `TERRA_V<version>_<suffix>.smf` is recognised (e.g. `TERRA_V1.7_holdmidi.smf`); a `stage1_` prefix is not. One firmware file per stick root; `terra-fw patch ... --auto-name` builds a folder per image.
+Naming (verified on the Terra): `TERRA_V<version>_<suffix>.smf` is recognised (e.g. `TERRA_V1.7_holdmidi.smf`); a `stage1_` prefix is not. One firmware file per stick root; `terra-fw patch ... --auto-name` builds a folder per image (hyphens in mod ids are dropped from the name).
 **If stage 1 fails** (LEDs blink incessantly, or "all six LEDs light"): stop. Re-flash stock and tell me what you saw;
 the mod then needs a different place for its code (dead space inside the image).
 
