@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 Toon Stegen
 """STM32 hardware CRC unit: CRC-32/MPEG-2 over little-endian 32-bit words
 (poly 0x04C11DB7, init 0xFFFFFFFF, no reflection, no final XOR)."""

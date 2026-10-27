@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 Toon Stegen
 """Run the Keil scatter loader (0x08051B8C) of TERRA_V1.7 in Unicorn and dump the RAM images.
 

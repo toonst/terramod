@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 Toon Stegen
 // Load the post-scatter-load RAM images (produced by tools/scatter_emu.py) into the program:
 //   itcm.bin -> new initialized block "ITCM" at 0x00000000 (rwx), where the audio/engine code lives

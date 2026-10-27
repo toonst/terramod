@@ -117,7 +117,7 @@ terra-fw padtest STOCK.smf OUT
 ## Licence
 
 Original work in this repository (the `terra-fw` tools, scripts, mods, notes and docs) is licensed under the
-**GNU General Public License v3.0 only** ([LICENSE](LICENSE), SPDX `GPL-3.0-only`). Copyright (C) 2026 Toon Stegen.
+**GNU General Public License v2.0 or later** ([LICENSE](LICENSE), SPDX `GPL-2.0-or-later`). Copyright (C) 2026 Toon Stegen.
 
 Not covered by that licence:
 * **SOMA Laboratory:** the TERRA firmware, manuals, preset files and name belong to SOMA. This repo contains none of them, and a

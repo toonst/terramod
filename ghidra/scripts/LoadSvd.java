@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright (C) 2026 Toon Stegen
 // Label STM32 peripheral registers and interrupt vectors from a CMSIS-SVD file.
 // Creates a label and a sized data item (byte/word/dword) at every register address
