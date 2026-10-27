@@ -6,7 +6,8 @@ requires-python = ">=3.9"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest"]
+dev = ["pytest", "keystone-engine", "capstone"]
+patch = ["keystone-engine"]
 
 [project.scripts]
 terra-fw = "terra_fw.cli:main"

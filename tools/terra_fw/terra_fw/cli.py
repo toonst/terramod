@@ -15,6 +15,10 @@ def main(argv=None):
     s = sub.add_parser("pack", help="build .smf from app.bin or .smp from JSON")
     s.add_argument("src"); s.add_argument("out")
     s.add_argument("--like", required=True, help="original file to copy the header field from")
+    s = sub.add_parser("patch", help="apply mod(s) to a stock .smf")
+    s.add_argument("smf"); s.add_argument("out"); s.add_argument("mods", nargs="+")
+    s = sub.add_parser("padtest", help="stock .smf + 64 bytes of 0xFF (tests that a longer image is accepted)")
+    s.add_argument("smf"); s.add_argument("out")
     a = ap.parse_args(argv)
 
     if a.cmd == "info":
@@ -28,6 +32,16 @@ def main(argv=None):
         else:
             b = presets.decode(c)
             print(f"    presets used: {sum(s is not None for s in b.slots)}/{presets.SLOTS}")
+    elif a.cmd == "patch":
+        from . import patcher
+        out, placed = patcher.apply(open(a.smf, "rb").read(), [patcher.load_mod(m) for m in a.mods])
+        open(a.out, "wb").write(out)
+        for p in placed:
+            print(f"hook {p.at:#010x} -> trampoline {p.tramp:#010x} ({p.size} bytes)")
+        print(f"wrote {a.out} ({len(out)} bytes)")
+    elif a.cmd == "padtest":
+        from . import patcher
+        open(a.out, "wb").write(patcher.pad_test(open(a.smf, "rb").read()))
     elif a.cmd == "unpack":
         c = container.parse(open(a.file, "rb").read())
         if a.file.endswith(".smf"):

@@ -13,3 +13,4 @@ ghidra/Terra.gpr
 ghidra/Terra.lock
 ghidra/Terra.lock~
 ghidra/Terra.rep/
+dist/
