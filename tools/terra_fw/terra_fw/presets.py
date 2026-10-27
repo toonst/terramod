@@ -1,7 +1,8 @@
 """Preset bank (.smp) payload codec.
 
-Payload (after the 16-byte container header, 0xFC0 bytes):
-  96 x 32-byte slots, then a 960-byte tail of global tables.
+Payload (after the 16-byte container header, 0xFC0 bytes) is a dump of EEPROM 0x40..0xFFF:
+  96 x 32-byte slots (6 banks x 16 sensors A-D,1-12: slot = bank*16 + sensor), then a 960-byte
+  tail of global tables.
 A slot of all 0xFF is empty. Otherwise:
   [0:12]   note per sensor; bit 7 is a per-sensor flag (meaning unknown)
   [12:24]  signed int8 microtuning per sensor (meaning inferred, unverified)

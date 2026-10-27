@@ -179,6 +179,81 @@ summary = """AUDIO = I2S1 master TX at 44.1 kHz (MCLK out) to an external DAC/co
 computes the next stereo frame as floats, converts to int32 and stores it at 0x30000074/0x30000078; DMA feeds
 that 2-word buffer to SPI1_TXDR. TIM3 ARR is rewritten each tick (variable period)."""
 
+
+# ---------------------------------------------------------------------------------------------
+# MIDI (USART1, 31250 baud, PA9 TX / PA10 RX)
+[midi]
+summary = """RX: USART1 RX via circular DMA (DMA1 stream 3, DMAMUX request 41); no USART interrupt is used.
+TX: NO DMA, NO IRQ. The main loop polls USART1_ISR.TXE (0x4001101C bit 7) and writes USART1_TDR (0x40011028)
+directly, one byte per loop pass, from two sources: the note/CC ring queue and the SysEx reply buffer."""
+usart1_isr = 0x4001101C
+usart1_tdr = 0x40011028
+
+[midi.queue]
+ctx_base = 0x20003394        # "synth/MIDI state" struct, pointed to by literal DAT_0803A478
+entries = "u16 x 256 at ctx+0x3E0 (one MIDI byte per entry), write idx ctx+0x5E0, read idx ctx+0x5E4 (both & 0xFF)"
+pending_count = "u16 at ctx+0x1F0; generators stop when >= 0xB4 (180) to leave headroom"
+mode = "ctx+0x1E8 & 0xC: 0, 4 (single-channel), 8, 0xC (MPE-style per-voice channels); channel at ctx+0x1EE"
+running_status = "enqueue helpers only emit a status byte when the channel/type changed or after 0xE/0x18 messages (counters at ctx+0x664..0x680)"
+
+[[function]]
+name = "midi_out_pump"
+address = 0x08039940
+status = "confirmed"
+notes = """Called from app_main_loop when ctx+0x30C != 0 and the SysEx state is not 4/5. If TXE: pops one u16 from the
+queue to USART1_TDR. Then generates new events: per-voice Note On/Off with velocity from float pressure state
+(clamped to 0x7F), pitch bend, poly pressure/channel pressure, CCs 0x10-0x13, 0x14+(0..11), 0x66-0x6B."""
+
+[[function]]
+name = "sysex_tx_pump"
+address = 0x080398BE
+status = "confirmed"
+notes = "If TXE: sends 0xF0, then the reply buffer ctx2+0x14.., then 0xF7 and resets the SysEx state to 0. ctx2 = 0x20019BB4"
+
+[[function]]
+name = "midi_enqueue_note"
+address = 0x0803A1A8
+status = "confirmed"
+notes = "(note, velocity, channel) -> 0x90+ch, note, vel; velocity 0 = note off"
+[[function]]
+name = "midi_enqueue_cc"
+address = 0x0803A21C
+status = "confirmed"
+notes = "(cc, value, channel) -> 0xB0+ch"
+[[function]]
+name = "midi_enqueue_poly_pressure"
+address = 0x0803A298
+status = "confirmed"
+notes = "(note, pressure, channel) -> 0xA0+ch"
+[[function]]
+name = "midi_enqueue_all_off"
+address = 0x0803A30C
+status = "confirmed"
+notes = "(channel) -> CC 0x78 (all sound off), 0x79 (reset controllers), 0x7B (all notes off), value 0"
+[[function]]
+name = "midi_enqueue_pitchbend"
+address = 0x0803A3A8
+status = "confirmed"
+notes = "(value14, channel) -> 0xE0+ch, LSB, MSB (value saturated to 14 bits)"
+[[function]]
+name = "midi_enqueue_channel_pressure"
+address = 0x0803A42C
+status = "confirmed"
+notes = "(value, channel) -> 0xD0+ch"
+
+[sysex]
+state_ctx = 0x20019BB4
+state_values = "0 idle, 3 command received, 4 reply ready, 5 error reply (state at ctx[0]; bytes from ctx+0x14)"
+framing = "header bytes at ctx+0x15..0x17 must be 'T','E','R'; command byte at ctx[6] equals ctx+0x1B; value at ctx[5] must be 0x7E"
+data_encoding = "each 32-bit word is sent as 5 seven-bit bytes (>>28, >>21&7F, >>14&7F, >>7&7F, &7F)"
+handler = "sysex_dispatch @0x0803C25C: commands 0..11 (0/2 dump all, 1, 3, 4, 5, 6/8/10 sub-dumps, 7/9/11 write preset)"
+preset_write = "7/9/11 write to EEPROM at 0x40 + (bank*16 + slot)*0x20 (+0x18 for the 8 param bytes); slot 0x7F = factory reset of that record"
+
+[eeprom_layout]
+presets = "records of 0x20 bytes at EEPROM 0x40 + (bank*16 + slot)*0x20; 6 banks x 16 sensors (A-D, 1-12)"
+dump_range = "EEPROM 0x40..0xFFF (4032 bytes) = exactly the .smp payload (4048-byte file with the 16-byte header)"
+tail = "EEPROM 0xC40..0xFFF (960 bytes) = the .smp 'tail' tables (pitch-shifter etc.)"
+
 [peripherals_seen]
 # Peripheral base addresses found in literal pools (count of references). Not proof of use by itself.
 used_for_sure = ["USART1 (MIDI, 31250 baud)", "I2C1", "I2C2", "SPI2 (init at 0x08044FAC)", "FMC (BCR1=0x30D2)", "RCC", "FLASH"]
