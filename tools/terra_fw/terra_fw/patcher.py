@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Toon Stegen
 """Apply code-hook mods to a TERRA .smf.
 
 A mod is a TOML file:

@@ -3,6 +3,7 @@ name = "terra_fw"
 version = "0.1.0"
 description = "Tools for SOMA Terra firmware (.smf) and preset (.smp) files"
 requires-python = ">=3.11"
+license = "GPL-3.0-only"
 dependencies = []
 
 [project.optional-dependencies]

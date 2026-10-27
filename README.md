@@ -115,5 +115,13 @@ terra-fw padtest STOCK.smf OUT
 * Held notes (`hold-midi`): polyphonic aftertouch of a released-but-held key goes to 0.
 
 ## Licence
-Code in this repo: add your licence of choice here. SOMA firmware, manuals and the TERRA name belong to SOMA Laboratory;
-the STM32 SVD and reference manual belong to STMicroelectronics.
+
+Original work in this repository (the `terra-fw` tools, scripts, mods, notes and docs) is licensed under the
+**GNU General Public License v3.0 only** ([LICENSE](LICENSE), SPDX `GPL-3.0-only`). Copyright (C) 2026 Toon Stegen.
+
+Not covered by that licence:
+* **SOMA Laboratory:** the TERRA firmware, manuals, preset files and name belong to SOMA. This repo contains none of them, and a
+  firmware file built with `terra-fw patch` contains SOMA's code, so **do not publish built `.smf` files**; share the mod instead.
+  Applying a GPL mod to firmware does not place SOMA's code under the GPL.
+* **STMicroelectronics:** `reference/STM32H743.svd`, `reference/RM0433.pdf` and `third_party/STM32CubeH7` keep their own licences.
+* Dependencies (keystone, capstone, unicorn, pytest) are installed separately by the user under their own licences; they are not distributed here.

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Toon Stegen
 // Load the post-scatter-load RAM images (produced by tools/scatter_emu.py) into the program:
 //   itcm.bin -> new initialized block "ITCM" at 0x00000000 (rwx), where the audio/engine code lives
 //   dtcm.bin -> bytes of the existing RAM block at 0x20000000 (converted to initialized if needed)

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Toon Stegen
 """SOMA container shared by .smf (firmware) and .smp (presets).
 
 Layout (all little-endian):

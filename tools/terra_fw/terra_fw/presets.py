@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Toon Stegen
 """Preset bank (.smp) payload codec.
 
 Payload (after the 16-byte container header, 0xFC0 bytes) is a dump of EEPROM 0x40..0xFFF:

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Toon Stegen
 """Firmware (.smf) payload: a Cortex-M application image."""
 import struct
 from dataclasses import dataclass
