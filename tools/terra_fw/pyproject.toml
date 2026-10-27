@@ -1,0 +1,18 @@
+[project]
+name = "terra_fw"
+version = "0.1.0"
+description = "Tools for SOMA Terra firmware (.smf) and preset (.smp) files"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+terra-fw = "terra_fw.cli:main"
+
+[tool.setuptools]
+packages = ["terra_fw"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

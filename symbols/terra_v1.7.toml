@@ -1,0 +1,197 @@
+# Symbol map for TERRA_V1.7.smf
+# sha256 of the .smf: 70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572
+# Addresses are runtime addresses. Status: confirmed | inferred | guess.
+
+[image]
+load_base   = 0x08020000   # confirmed
+image_end   = 0x08059A54   # exclusive; payload_len = 236116
+initial_sp  = 0x2001CD58
+toolchain   = "Keil/armcc-style startup (scatterload + __rt_entry)"   # inferred
+# CORRECTION to the earlier draft (F4): SystemInit touches RCC at 0x58024400, FLASH at 0x52002000
+# and FMC at 0x52004000. Those are STM32H7 addresses, and main() sets up 9 MPU regions and the
+# D/I caches. So the MCU is an STM32H7 (Cortex-M7).
+mcu_family  = "STM32H7 (Cortex-M7)"       # confirmed by peripheral addresses; exact part unknown
+bootloader  = "0x08000000..0x0801FFFF (one 128 KB H7 flash sector), not in this image"  # inferred
+vtor        = 0x08020000   # confirmed: main() writes it to SCB->VTOR; SystemInit first writes 0x08000000
+flash_sector = "128 KB on H7: this image spans sectors 1..3 (0x08020000..0x0805FFFF)"
+
+[[function]]
+name = "Reset_Handler"
+address = 0x08051CC4
+status = "confirmed"
+notes = "ldr r0,=SystemInit; blx; ldr r0,=__main; bx"
+
+[[function]]
+name = "SystemInit"
+address = 0x08051974
+status = "confirmed"
+notes = "ST-style: enable FPU, FLASH latency, RCC reset values, FMC->BTCR[0]=0x30D2, VTOR=0x08000000"
+
+[[function]]
+name = "__main"
+address = 0x08051CA8
+status = "confirmed"
+notes = "sets PSP, calls 0x08051BB4 (enables FPU in CPACR) then __rt_entry at 0x08051C60"
+
+[[function]]
+name = "__rt_entry"
+address = 0x08051C60
+status = "confirmed"
+notes = "scatterload (0x08051B8C) if needed, then calls main (0x0803E878)"
+
+[[function]]
+name = "scatterload"
+address = 0x08051B8C
+status = "confirmed"
+
+[[function]]
+name = "main"
+address = 0x0803E878
+status = "confirmed"
+notes = """VTOR=0x08020000; MPU with 9 regions (0x00000000, 0x20000000, 0x24000000 AXI SRAM,
+0x30000000 SRAM1-3, 0x40000000, 0x60000000, 0x80000000, 0xA0000000, 0xC0000000 FMC); enable I/D cache;
+then init sequence ending in FUN_080358a8 (very large, 81k chars of decompiler output) and an
+empty infinite loop. All real work is therefore interrupt driven or inside FUN_080358a8."""
+
+[[function]]
+name = "hw_config_and_leds_init"
+address = 0x0803ABA6
+status = "inferred"
+notes = """Reads a 0x40-byte config block (magic at +0x1c) into 0x..., substitutes defaults (16 x u16 = 400,
+24 x u8 = 0x32) if empty or invalid, flashes the LEDs when defaults had to be used, then brings up
+peripherals. Looks like sensor/pot calibration storage. Storage medium not identified yet."""
+
+[[function]]
+name = "delay_ms"
+address = 0x0803A7E8
+status = "inferred"
+
+[[function]]
+name = "midi_uart_init"
+address = 0x08041830
+status = "confirmed"
+notes = "HAL-style UART init with baud 0x7A12 = 31250 (MIDI). USART1 is referenced in this function's literal pool."
+
+[[function]]
+name = "Error_Handler"
+address = 0x0803EC24
+status = "inferred"
+notes = "called on every failed HAL init"
+
+[[function]]
+name = "spi2_init_slow"
+address = 0x08044FAC
+status = "inferred"
+notes = "HAL SPI init, master, prescaler field 0x70000000 (the /256 setting on H7); peripheral base is SPI2/I2S2 (0x40003800). Purpose unknown."
+
+[[function]]
+name = "I2C1_EV_IRQHandler"
+address = 0x08051622
+status = "inferred"
+notes = "hand-rolled I2C event ISR (reads ISR/CR1 flag bits); shares code with the I2C2 handler at 0x080516F2"
+
+[[function]]
+name = "app_main_loop"
+address = 0x080358A8
+status = "confirmed"
+notes = """Never returns. ~2200 lines of decompiled output. Superloop: polls FUN_0803AAFE until it returns != 1,
+then dispatches on a mode variable (values 3/4/5 -> FUN_0803C25C / FUN_080398BE / FUN_08039940),
+reloads the preset block (FUN_08031EF4) when the sensor bits change. Uses the FPU heavily. Most likely the
+UI/sensor/preset state machine. Audio rendering has not been found in it yet."""
+
+[[function]]
+name = "touch_scan"
+address = 0x0803AAFE
+status = "inferred"
+notes = """Sensor scan. Drops the two touch buses' interrupts, pulses a GPIOB pin (reset?), starts DMA reads on
+I2C1 (handle 0x2001BFD8) and I2C2 (handle 0x2001C02C), then reads 12 bytes from each via FUN_0803E780 with
+I2C address 0xB4 (= 7-bit 0x5A, MPR121 default). Results land at 0x2001C0D6 and 0x2001C0E2. Returns 0 on
+success (counter at +0x40 incremented), 1 on failure (+0x44). Looks like 2 x 12 = 24 touch channels.
+The chip identity (MPR121-class) is a guess from the address."""
+
+[[function]]
+name = "eeprom_read"
+address = 0x0803AE58
+status = "confirmed"
+notes = """i2c_mem_read(handle 0x2001C080, dev 0xA0, mem_addr, 2-byte addressing, buf, len, timeout=-1).
+Device address 0xA0 = 7-bit 0x50: an external I2C EEPROM (24Cxx class) with 16-bit addresses.
+This is where user presets and calibration live, NOT internal flash. Args seen: addr 0x00 (0x40-byte
+config block, "SOMA" magic 0x414D4F53 at +0x1C), 0x20, 0x38, 0x01."""
+
+[[function]]
+name = "eeprom_write"
+address = 0x0803AE78
+status = "confirmed"
+notes = "drops GPIOD pin 11 (0x800) = write-protect, i2c_mem_write, polls i2c_is_device_ready until the write cycle ends, raises WP again"
+
+[[function]]
+name = "i2c_mem_read"
+address = 0x080403F8
+status = "confirmed"
+[[function]]
+name = "i2c_mem_write"
+address = 0x0804020A
+status = "confirmed"
+[[function]]
+name = "i2c_is_device_ready"
+address = 0x0804072C
+status = "confirmed"
+
+[[irq_notes]]
+vector30 = "DMA1_Stream3 -> USART DMA (handle 0x2001BE20, used next to the MIDI UART code), jumps to HAL callback 0x0803C478"
+vector72_73 = "DMA2_Stream0/1 -> RX-complete for I2C1/I2C2 touch reads (handles 0x2001B98C / 0x2001BA08): sets timeout counters at 0x2001C3F0/F4 to 100, stops DMA, re-enables I2C interrupts"
+vector45 = """vec 45 handler at 0x0805161E is a veneer `ldr pc,[pc]` to 0x00009731, i.e. code in ITCM (0x00000000 region),
+copied there by the scatter loader. 'Fast code' placed in ITCM is the best candidate for the audio render path.
+The flash source of that ITCM image has NOT been located yet (scatter table at 0x08051BD8..0x08051C60 needs a
+careful parse)."""
+
+[peripherals_seen]
+# Peripheral base addresses found in literal pools (count of references). Not proof of use by itself.
+used_for_sure = ["USART1 (MIDI, 31250 baud)", "I2C1", "I2C2", "SPI2 (init at 0x08044FAC)", "FMC (BCR1=0x30D2)", "RCC", "FLASH"]
+also_referenced = ["ADC1/2", "ADC3", "GPIOA..H", "SPI1/I2S1", "SPI3/I2S3", "TIM1/3/4/5/15", "USART2/3/6", "UART4/5", "DMA1/DMA2/DMAMUX1"]
+not_referenced = ["SAI1", "SAI2", "SAI4", "USB OTG (no literal found)"]
+# No SAI references: the audio output is probably I2S on SPI1/2/3, possibly driven by DMA from an ISR.
+# The USB-stick update is the BOOTLOADER's job; this app has no USB host code visible by base address.
+
+[open_questions]
+audio = "OPEN: TIM3 ISR (vec 45) jumps into ITCM at 0x00009730; locate the ITCM image in flash via the scatter table"
+presets = "ANSWERED: external I2C EEPROM at 0xA0; still need the preset layout inside it and how .smp files map to it"
+sensors = "ANSWERED (mostly): FUN_0803AAFE reads 2 x 12 touch channels over I2C1/I2C2 via DMA"
+
+[[irq]]
+vector = 30
+irqn = 14
+handler = 0x08051609
+st_h7_name = "DMA1_Stream3 (guess)"
+notes = "not yet a function in Ghidra; vectors at 0x08020000 point at 4-byte stubs"
+[[irq]]
+vector = 45
+irqn = 29
+handler = 0x0805161F
+st_h7_name = "TIM3 (guess)"
+[[irq]]
+vector = 47
+irqn = 31
+handler = 0x08051623
+st_h7_name = "I2C1_EV (guess)"
+[[irq]]
+vector = 49
+irqn = 33
+handler = 0x080516F3
+st_h7_name = "I2C2_EV (guess)"
+[[irq]]
+vector = 72
+irqn = 56
+handler = 0x080517C3
+st_h7_name = "DMA2_Stream0 (guess)"
+[[irq]]
+vector = 73
+irqn = 57
+handler = 0x08051803
+st_h7_name = "DMA2_Stream1 (guess)"
+
+[free_resources]
+# Flash after the image: 0x08059A54..0x0805FFFF is the rest of sector 3. Sectors 4+ unknown:
+# TODO find where presets/calibration are stored (external memory via FMC? QSPI? internal flash?).
+# TODO RAM map: DTCM 0x20000000 (128K), AXI SRAM 0x24000000, SRAM1-3 0x30000000, SDRAM at 0xC0000000?
+# TODO audio callback headroom.

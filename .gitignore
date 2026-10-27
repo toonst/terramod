@@ -1,0 +1,17 @@
+# Official SOMA binaries: never commit (see firmware/KNOWN.md for hashes)
+firmware/*.smf
+firmware/*.smp
+# Generated output
+build/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+.DS_Store
+# Local Ghidra project (binary, machine-specific, contains analysis of SOMA's code)
+Terra.gpr
+Terra.lock
+Terra.lock~
+Terra.rep/
+# Large third-party reference docs, fetch locally (see reference/README.md)
+reference/*.pdf
