@@ -1,11 +1,11 @@
 # Terra firmware mods
 
-Tools, notes and a first mod for the **SOMA Laboratory TERRA** synthesizer. It lets you build a *modded* firmware
-(`.smf`) from your own copy of the official firmware, and install it with the stick-based update the Terra already has.
+Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It lets you build a *modded* firmware
+(`.smf`) from your own copy of the official firmware, and install it with the USB stick-based update procedure.
 
-> **Unofficial and unsupported.** Not affiliated with SOMA Laboratory. You use this at your own risk and can lose
+> **Unofficial and unsupported.** Not affiliated with Soma Laboratory. You use this at your own risk and can lose
 > presets or end up with an instrument that needs a re-flash. The mods are tested only on firmware **V1.7**.
-> This repo contains **no SOMA firmware**: you supply the official file; mods are applied as small patches to it.
+> This repo contains **no Soma firmware**: you supply the official file; mods are applied as small patches to it.
 
 ## What's here
 
