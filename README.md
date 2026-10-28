@@ -96,14 +96,12 @@ Rules of thumb:
 
 ## Tools
 
-Run these as `uv run terra-fw …`.
-
 ```bash
-terra-fw info FILE            # verify checksum, describe an .smf/.smp
-terra-fw unpack FILE OUT      # .smf -> raw image, .smp -> JSON
-terra-fw pack SRC OUT --like ORIGINAL
-terra-fw patch STOCK.smf OUT MOD.toml [MOD.toml ...] [--auto-name]
-terra-fw padtest STOCK.smf OUT
+uv run terra-fw info FILE            # verify checksum, describe an .smf/.smp
+uv run terra-fw unpack FILE OUT      # .smf -> raw image, .smp -> JSON
+uv run terra-fw pack SRC OUT --like ORIGINAL
+uv run terra-fw patch STOCK.smf OUT MOD.toml [MOD.toml ...] [--auto-name]
+uv run terra-fw padtest STOCK.smf OUT
 ```
 
 ## Known limits
