@@ -1,0 +1,27 @@
+# Workspace root: `uv sync` installs terra-fw (CLI) plus the dev tools; `uv run terra-fw ...` / `uv run pytest` use it.
+[project]
+name = "terra-firmware-mods"
+version = "0.0.0"
+description = "Mods for the SOMA Terra synthesizer firmware"
+requires-python = ">=3.11"
+license = "GPL-2.0-or-later"
+dependencies = ["terra_fw"]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "capstone",   # disassembly when analysing / checking patches
+    "unicorn",    # tools/scatter_emu.py and emulating trampolines
+]
+
+[tool.uv]
+package = false
+
+[tool.uv.sources]
+terra_fw = { workspace = true }
+
+[tool.uv.workspace]
+members = ["tools/terra_fw"]
+
+[tool.pytest.ini_options]
+testpaths = ["tools/terra_fw/tests"]

@@ -24,10 +24,9 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 ## 1. Set up
 
 ```bash
-git clone <this repo>          # no --recurse-submodules: see the optional step below
+git clone <this repo>
 cd terra_firmware
-python3 -m venv .venv && source .venv/bin/activate     # Python 3.11+
-pip install -e "tools/terra_fw[dev]"                    # terra-fw, keystone (assembler), capstone, pytest
+uv sync          # creates .venv with terra-fw, keystone (assembler), capstone, unicorn, pytest (needs uv: https://docs.astral.sh/uv/)
 ```
 
 Download SOMA's official firmware from <https://somasynths.com/firmware_terra/> and put it in `firmware/`:
@@ -35,7 +34,7 @@ Download SOMA's official firmware from <https://somasynths.com/firmware_terra/> 
 ```bash
 shasum -a 256 firmware/TERRA_V1.7.smf
 # 70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572   <- must match; mods refuse any other file
-pytest tools/terra_fw                                    # sanity check (7 tests)
+uv run pytest                                            # sanity check (7 tests)
 ```
 
 Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (not included for copyright reasons).
@@ -57,7 +56,7 @@ Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (
    This writes `TERRA___.smp` with all 96 presets and pitch-shifter settings. Copy it off the stick. (It should be the same format as the factory `TERRA_0.smp`, so `terra-fw info` can read it; untested.)
 2. **Build:**
    ```bash
-   terra-fw patch firmware/TERRA_V1.7.smf dist mods/hold-midi/mod.toml --auto-name
+   uv run terra-fw patch firmware/TERRA_V1.7.smf dist mods/hold-midi/mod.toml --auto-name
    # -> dist/TERRA_V1.7_holdmidi/TERRA_V1.7_holdmidi.smf
    ```
    Several mods can be combined: list more `mod.toml` files (overlapping hooks are rejected).
@@ -69,7 +68,7 @@ Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (
 5. **Go back to stock any time** by installing the official `TERRA_V1.7.smf` the same way.
 
 First time ever? Follow [docs/flashing-test-plan.md](docs/flashing-test-plan.md): flash the stock file first, then a padded-but-identical image
-(`terra-fw padtest firmware/TERRA_V1.7.smf out.smf`), then the real mod.
+(`uv run terra-fw padtest firmware/TERRA_V1.7.smf out.smf`), then the real mod.
 
 ## 3. Write your own mod
 
@@ -102,15 +101,17 @@ Rules of thumb:
 * Replace whole instructions; if your hook displaces instructions, **redo them** in your code (e.g. PC-relative literal loads must become `movw/movt`).
 * Respect the calling convention: `r0-r3`, `r12` (`ip`) are scratch only if the surrounding code does not keep a live value there. Check the code around the hook.
 * Code that runs from ITCM (addresses below `0x10000`, e.g. the audio interrupt at `0x9730`) is copied to RAM at boot, so it can't be patched in flash this way yet.
-* Run `pytest tools/terra_fw` and, for new hooks, emulate the trampoline (see how `hold-midi` was checked in `docs/bugs/hold-midi-notes.md`).
+* Run `uv run pytest` and, for new hooks, emulate the trampoline (see how `hold-midi` was checked in `docs/bugs/hold-midi-notes.md`).
 
 ### Finding where to hook
 1. Read [symbols/terra_v1.7.toml](symbols/terra_v1.7.toml) and [docs/midi-sysex.md](docs/midi-sysex.md): the main loop, MIDI generator, SysEx handler, EEPROM layout and sensor scan are already mapped.
 2. Load the firmware in Ghidra: [docs/ghidra_import.md](docs/ghidra_import.md) (raw binary, ARM Cortex, base `0x08020000`; run `ghidra/scripts/LoadSvd.java` and `LoadRamImage.java`).
-   `terra-fw unpack firmware/TERRA_V1.7.smf build/app.bin` extracts the image; `python tools/scatter_emu.py build/app.bin build/ram` recovers RAM code.
+   `uv run terra-fw unpack firmware/TERRA_V1.7.smf build/app.bin` extracts the image; `uv run python tools/scatter_emu.py build/app.bin build/ram` recovers RAM code.
 3. Write a short analysis (`docs/bugs/…` is a good model), then the `mod.toml`, then test as in section 2.
 
 ## Tools
+
+Run these as `uv run terra-fw …` (or activate `.venv` and drop the `uv run`).
 
 ```bash
 terra-fw info FILE            # verify checksum, describe an .smf/.smp
