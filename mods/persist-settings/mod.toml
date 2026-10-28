@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Toon Stegen
+#
+# Persist (1) the "A + tuning" pitch-down mode and (2) the MIDI output mode across power cycles.
+# Supersedes `persist-pitchdown` (same hook site, so the two cannot be combined; the EEPROM format is backward compatible).
+#
+# Why the stock firmware forgets the MIDI mode: it saves `ctx+0x1E8 & 0x33` to EEPROM[0x38] (MIDI channel bits only) and
+# the mode lives in bits 2-3 (0x0C: 0 = off, 4 = CC+notes..., 8, 0xC = MPE). The manual documents this: the output "returns to off" on power-up.
+# At boot the "MIDI active" flag (ctx+0x618) is only set by the settings UI, so restoring the bits alone would not turn MIDI on; this mod sets it too.
+#
+# Storage: EEPROM[0x1A] = settings byte (bits 0-1 pitch-down mode 0..2, bits 2-3 MIDI mode), EEPROM[0x1B] = byte ^ 0xA5 (validity).
+# See docs/eeprom-map.md: 0x1A/0x1B are unused by the stock firmware.  Blank/corrupt bytes load the defaults (pitch = full stop, MIDI off).
+# RAM used: 0x2001FFF0 (magic) and 0x2001FFF4 (last saved settings byte), the top of DTCM.
+[mod]
+id = "persist-settings"
+version = "0.1.0"
+fw_version = "1.7"
+targets = ["70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572"]   # TERRA_V1.7.smf
+
+# Replaces `ldr.w r0,[pc,#..]` (= 0x2001BC0C, the USART1 handle) at the head of the main-loop pass.
+[[hook]]
+at = 0x08035A56
+expect = "dff86c0b"
+asm = """
+    push.w {r0, r1, r2, r3, r12, lr}
+    bl mod_tick
+    pop.w {r0, r1, r2, r3, r12, lr}
+    movw r0, #0xBC0C
+    movt r0, #0x2001
+    b.w #0x08035A5A
+
+mod_tick:
+    push.w {r4, r5, r6, r7, r8, lr}
+    sub sp, sp, #8
+    movw r4, #0xFFF0
+    movt r4, #0x2001            @ r4 = shadow state: [0] magic, [4] last saved/loaded settings byte
+    movw r5, #0xAB20
+    movt r5, #0x7E57            @ r5 = magic
+    movw r7, #0x337C
+    movt r7, #0x2000            @ r7 = &pitch-down mode index (engine float at +4)
+    movw r8, #0x357C
+    movt r8, #0x2000            @ r8 = &ctx+0x1E8 (MIDI settings word: mode bits 2-3, channel bits 0,1,4,5)
+    ldr r6, [r4]
+    cmp r6, r5
+    bne first
+
+    ldr r0, [r7]                @ pitch-down mode
+    cmp r0, #2
+    bhi done                    @ out of range: ignore
+    ldrh r1, [r8]
+    and r1, r1, #0xC            @ MIDI mode bits
+    orr r0, r0, r1              @ combined settings byte
+    ldr r1, [r4, #4]
+    cmp r0, r1
+    beq done
+    str r0, [r4, #4]
+    strb r0, [sp]
+    eor r0, r0, #0xA5
+    strb r0, [sp, #1]
+    movs r0, #0x1A
+    mov r1, sp
+    movs r2, #2
+    bl #0x0803AE78              @ eeprom_write(addr, buf, len)
+done:
+    add sp, sp, #8
+    pop.w {r4, r5, r6, r7, r8, pc}
+
+first:
+    str r5, [r4]
+    movs r0, #0x1A
+    mov r1, sp
+    movs r2, #2
+    bl #0x0803AE58              @ eeprom_read(addr, buf, len)
+    ldrb r0, [sp]
+    ldrb r1, [sp, #1]
+    eor r1, r1, #0xA5
+    cmp r0, r1
+    bne use_default
+    cmp r0, #0xF
+    bhi use_default
+    and r1, r0, #3
+    cmp r1, #2
+    bls apply
+use_default:
+    movs r0, #2                 @ pitch full stop, MIDI off
+apply:
+    str r0, [r4, #4]            @ shadow = what is stored
+    and r1, r0, #3
+    str r1, [r7]                @ pitch-down mode index
+    cmp r1, #0
+    beq f0
+    cmp r1, #1
+    beq f1
+    movw r2, #0x0000
+    movt r2, #0x3F80            @ 1.0
+    b setf
+f1:
+    movw r2, #0x0000
+    movt r2, #0x3F00            @ 0.5
+    b setf
+f0:
+    movw r2, #0x7058
+    movt r2, #0x3DDF            @ 1 - 2^(-2/12)
+setf:
+    str r2, [r7, #4]
+    and r2, r0, #0xC            @ saved MIDI mode bits
+    ldrh r3, [r8]
+    bic r3, r3, #0xC
+    orr r3, r3, r2
+    strh r3, [r8]               @ ctx+0x1E8 (keeps the stock-restored channel bits)
+    strh r3, [r8, #4]           @ ctx+0x1EC: previous-value copy used for change detection
+    cmp r2, #0
+    beq done
+    movw r1, #0x39AC
+    movt r1, #0x2000            @ ctx+0x618 = "MIDI output active" flag, normally set by the settings UI
+    movs r3, #1
+    str r3, [r1]
+    b done
+"""

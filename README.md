@@ -14,7 +14,7 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 | Path | What |
 |---|---|
 | `tools/terra_fw/` | Python package + `terra-fw` CLI: container/CRC, preset (`.smp`) codec, patcher |
-| `mods/` | Mods (a `mod.toml` per mod). Currently `hold-midi`: Note Hold also holds the MIDI notes |
+| `mods/` | Mods (a `mod.toml` per mod): `hold-midi` (Note Hold also holds the MIDI notes), `persist-settings` (pitch-down mode and MIDI mode survive power-off; supersedes `persist-pitchdown`) |
 | `symbols/terra_v1.7.toml` | Reverse-engineering notes: addresses, structs, findings for V1.7 |
 | `docs/` | `midi-sysex.md` (MIDI/SysEx internals), `bugs/` (analysis of fixed bugs), `flashing-test-plan.md`, `PLAN.md` (roadmap), `ghidra_import.md` |
 | `ghidra/scripts/` | Ghidra scripts (SVD register labels, RAM image loader) |
@@ -88,6 +88,7 @@ Rules of thumb:
 * Replace whole instructions; if your hook displaces instructions, **redo them** in your code (e.g. PC-relative literal loads must become `movw/movt`).
 * Respect the calling convention: `r0-r3`, `r12` (`ip`) are scratch only if the surrounding code does not keep a live value there. Check the code around the hook.
 * Code that runs from ITCM (addresses below `0x10000`, e.g. the audio interrupt at `0x9730`) is copied to RAM at boot, so it can't be patched in flash this way yet.
+* keystone silently mis-assembles a backward `cbz`/`cbnz`: use `cmp` + `beq` instead.
 * Run `uv run pytest` and, for new hooks, emulate the trampoline (see how `hold-midi` was checked in `docs/bugs/hold-midi-notes.md`).
 
 ### Finding where to hook

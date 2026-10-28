@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 Toon Stegen
-"""Emulate the persist-pitchdown trampoline against the real patched image, with a fake EEPROM."""
+"""Emulate the persist-settings trampoline (pitch-down part; see test_persist_midimode.py for MIDI) against the real patched image, with a fake EEPROM."""
 import pathlib
 import struct
 
@@ -15,13 +15,13 @@ from terra_fw import container, patcher
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
 SMF = ROOT / "firmware" / "TERRA_V1.7.smf"
-MOD = ROOT / "mods" / "persist-pitchdown" / "mod.toml"
+MOD = ROOT / "mods" / "persist-settings" / "mod.toml"
 pytestmark = pytest.mark.skipif(not SMF.exists(), reason="no stock firmware")
 
 BASE = 0x08020000
 HOOK, RET = 0x08035A56, 0x08035A5A
 MODE, FLOAT, SHADOW = 0x2000337C, 0x20003380, 0x2001FFF0
-MAGIC = 0x7E57AB1E
+MAGIC = 0x7E57AB20
 
 
 class Rig:

@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (C) 2026 Toon Stegen
 #
+# SUPERSEDED by persist-settings (also persists the MIDI mode; reads this mod's EEPROM format). Kept for reproducibility.
+#
 # Persist the "A + tuning" pitch-down mode (2 semitones / 12 semitones / full stop) across power cycles.
 #
 # State in the firmware (V1.7):  0x2000337C = mode index (0 = 2 st, 1 = 12 st, 2 = full stop, default 2)

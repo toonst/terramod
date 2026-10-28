@@ -1,4 +1,4 @@
-# Mod: persist-pitchdown
+# Mod: persist-settings (supersedes persist-pitchdown)
 
 **Problem:** the V1.3 "A + tuning" setting (A sensor pitch-down: 2 semitones / 12 semitones / until full stop; the same
 selection also changes the pitch-bender variants of two POLYPHONIC algorithms) is lost at power-off. The manual says it is not saved in presets.
@@ -24,3 +24,22 @@ corrupt/out-of-range values, saving once per change, power-cycle round trip, sta
 
 **Not verified on hardware.** Things to check on the Terra: set each of the three modes with A + tuning, power-cycle, confirm it is restored;
 and that A-sensor behaviour and the triangle LEDs are otherwise unchanged. Open assumptions: EEPROM bytes `0x1A/0x1B` really unused; top of DTCM free.
+
+## Added in persist-settings: MIDI mode
+
+**Why the stock firmware forgets it:** the MIDI settings word `ctx+0x1E8` (RAM `0x2000357C`) holds the MIDI *mode* in bits 2-3
+(`0` off, `4`, `8`, `0xC` = MPE) and the MIDI *channel* in bits 0, 1, 4, 5. The save routine (main loop, `0x080363CE`) stores only `word & 0x33` to
+EEPROM `0x38`, so the channel persists and the mode does not; the manual says the output returns to *off* at power-up. Restoring the bits alone is not
+enough: the MIDI pump runs only while `ctx+0x618` (RAM `0x200039AC`) is non-zero, and only the settings UI sets it.
+
+**What the mod does at boot:** replaces bits 2-3 of `ctx+0x1E8` (the channel bits restored by the stock code stay), copies the word to `ctx+0x1EC`
+(the previous-value copy, so no spurious "mode changed" panic/all-notes-off), and sets `ctx+0x618 = 1` if the mode is not off. OmniChord stays off at power-up as documented.
+
+**Storage:** one settings byte at EEPROM `0x1A` = `pitch_mode (bits 0-1) | midi_mode (bits 2-3)`, `0x1B` = byte ^ 0xA5. Saved on change only (a channel-only change is
+left to the stock code). Bytes written by `persist-pitchdown` stay valid (MIDI mode off). Not combinable with `persist-pitchdown` (same hook site; the patcher refuses).
+
+**Tests:** `test_persist_midimode.py` (restore per mode, channel bits kept, output enabled only when the mode is not off, old format, corrupt/blank EEPROM,
+save-on-change with pitch bits preserved, channel-only changes ignored, power-cycle round trip).
+
+**Not verified on hardware:** that each of the three MIDI modes (CC, notes, MPE) comes up transmitting after a power cycle without entering the settings UI, and that the
+channel behaves as before. Gotcha found while testing: keystone silently mis-assembles a backward `cbz`; use `cmp`+`beq` for backward branches.

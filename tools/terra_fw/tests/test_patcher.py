@@ -37,3 +37,12 @@ def test_expect_mismatch_refused(tmp_path):
     mod["hook"][0]["expect"] = "00000000"
     with pytest.raises(patcher.PatchError):
         patcher.apply(SMF.read_bytes(), [mod])
+
+
+def test_persist_mods_share_a_hook_site_and_cannot_be_combined():
+    old = patcher.load_mod(str(ROOT / "mods" / "persist-pitchdown" / "mod.toml"))
+    new = patcher.load_mod(str(ROOT / "mods" / "persist-settings" / "mod.toml"))
+    patcher.apply(SMF.read_bytes(), [old])
+    patcher.apply(SMF.read_bytes(), [new])
+    with pytest.raises(patcher.PatchError):
+        patcher.apply(SMF.read_bytes(), [old, new])
