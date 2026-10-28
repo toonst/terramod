@@ -18,13 +18,13 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 | `ghidra/scripts/` | Ghidra scripts (SVD register labels, RAM image loader) |
 | `tools/scatter_emu.py` | Runs the firmware's startup copy in an emulator to recover the RAM-resident code (ITCM) |
 | `reference/` | STM32H743 SVD, RM0433 reference manual, notes on what to download |
-| `third_party/STM32CubeH7` | git submodule (ST HAL source, for understanding the firmware) |
+| `third_party/STM32CubeH7` | **optional** git submodule (ST HAL source, ~1.9 GB, only useful for decompiling; see below) |
 | `firmware/` | **Your** official `.smf`/`.smp` go here (git-ignored); `KNOWN.md` lists the expected hashes |
 
 ## 1. Set up
 
 ```bash
-git clone --recurse-submodules <this repo>
+git clone <this repo>          # no --recurse-submodules: see the optional step below
 cd terra_firmware
 python3 -m venv .venv && source .venv/bin/activate     # Python 3.11+
 pip install -e "tools/terra_fw[dev]"                    # terra-fw, keystone (assembler), capstone, pytest
@@ -39,6 +39,17 @@ pytest tools/terra_fw                                    # sanity check (7 tests
 ```
 
 Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (not included for copyright reasons).
+
+> **Optional and large: ST's HAL source.** `third_party/STM32CubeH7` is a submodule of ST's whole STM32CubeH7 repository
+> (about 1.9 GB on disk and a slow download). You **do not need it** to build, install or write mods. It is only useful if you
+> decompile the firmware (for example with an AI agent in Ghidra), because the firmware's init code is ST HAL code and the
+> sources help to name functions and struct fields. If you want it, fetch only the useful parts:
+> ```bash
+> git submodule update --init --depth 1 third_party/STM32CubeH7
+> git -C third_party/STM32CubeH7 submodule update --init --depth 1 \
+>     Drivers/STM32H7xx_HAL_Driver Drivers/CMSIS/Device/ST/STM32H7xx
+> ```
+> (The shallow flags are untested; a plain `git submodule update --init --recursive` also works but downloads everything.)
 
 ## 2. Build and install an existing mod
 
