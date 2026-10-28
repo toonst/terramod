@@ -17,8 +17,8 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 | `docs/` | `midi-sysex.md` (MIDI/SysEx internals), `bugs/` (analysis of fixed bugs), `flashing-test-plan.md`, `PLAN.md` (roadmap), `ghidra_import.md` |
 | `ghidra/scripts/` | Ghidra scripts (SVD register labels, RAM image loader) |
 | `tools/scatter_emu.py` | Runs the firmware's startup copy in an emulator to recover the RAM-resident code (ITCM) |
-| `reference/` | STM32H743 SVD, RM0433 reference manual, notes on what to download |
-| `third_party/STM32CubeH7` | **optional** git submodule (ST HAL source, ~1.9 GB, only useful for decompiling; see below) |
+| `reference/` | STM32H743 SVD, RM0433 reference manual (SOMA's PDFs are not included, see [AGENTS.md](AGENTS.md)) |
+| `third_party/STM32CubeH7` | **optional** git submodule (ST HAL source, ~1.9 GB, only for decompiling; see [AGENTS.md](AGENTS.md)) |
 | `firmware/` | **Your** official `.smf`/`.smp` go here (git-ignored); `KNOWN.md` lists the expected hashes |
 
 ## 1. Set up
@@ -26,8 +26,9 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 ```bash
 git clone <this repo>
 cd terra_firmware
-uv sync          # creates .venv with terra-fw, keystone (assembler), capstone, unicorn, pytest (needs uv: https://docs.astral.sh/uv/)
 ```
+
+The only prerequisite is [uv](https://docs.astral.sh/uv/); the first `uv run` creates the environment and installs the dependencies.
 
 Download SOMA's official firmware from <https://somasynths.com/firmware_terra/> and put it in `firmware/`:
 
@@ -36,19 +37,6 @@ shasum -a 256 firmware/TERRA_V1.7.smf
 # 70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572   <- must match; mods refuse any other file
 uv run pytest                                            # sanity check (7 tests)
 ```
-
-Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (not included for copyright reasons).
-
-> **Optional and large: ST's HAL source.** `third_party/STM32CubeH7` is a submodule of ST's whole STM32CubeH7 repository
-> (about 1.9 GB on disk and a slow download). You **do not need it** to build, install or write mods. It is only useful if you
-> decompile the firmware (for example with an AI agent in Ghidra), because the firmware's init code is ST HAL code and the
-> sources help to name functions and struct fields. If you want it, fetch only the useful parts:
-> ```bash
-> git submodule update --init --depth 1 third_party/STM32CubeH7
-> git -C third_party/STM32CubeH7 submodule update --init --depth 1 \
->     Drivers/STM32H7xx_HAL_Driver Drivers/CMSIS/Device/ST/STM32H7xx
-> ```
-> (The shallow flags are untested; a plain `git submodule update --init --recursive` also works but downloads everything.)
 
 ## 2. Build and install an existing mod
 
@@ -66,9 +54,6 @@ Optional: put SOMA's manual and the "Additional functions" PDF in `reference/` (
 4. **Update:** insert the stick, power on, hold **L+E** (the hold LED must blink; if not, the name was not recognised), then press **H** while holding L.
    The triangle LEDs lighting in a circle = success. If the LEDs blink endlessly, power-cycle and retry or try another stick.
 5. **Go back to stock any time** by installing the official `TERRA_V1.7.smf` the same way.
-
-First time ever? Follow [docs/flashing-test-plan.md](docs/flashing-test-plan.md): flash the stock file first, then a padded-but-identical image
-(`uv run terra-fw padtest firmware/TERRA_V1.7.smf out.smf`), then the real mod.
 
 ## 3. Write your own mod
 
@@ -111,7 +96,7 @@ Rules of thumb:
 
 ## Tools
 
-Run these as `uv run terra-fw …` (or activate `.venv` and drop the `uv run`).
+Run these as `uv run terra-fw …`.
 
 ```bash
 terra-fw info FILE            # verify checksum, describe an .smf/.smp
