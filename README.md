@@ -1,5 +1,7 @@
 # Terra firmware mods
 
+<p align="center"><img src="docs/images/soma-terra.png" alt="Soma Laboratory Terra" width="420"></p>
+
 Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It lets you build a *modded* firmware
 (`.smf`) from your own copy of the official firmware, and install it with the USB stick-based update procedure.
 
