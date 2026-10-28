@@ -1,0 +1,96 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Toon Stegen
+#
+# Persist the "A + tuning" pitch-down mode (2 semitones / 12 semitones / full stop) across power cycles.
+#
+# State in the firmware (V1.7):  0x2000337C = mode index (0 = 2 st, 1 = 12 st, 2 = full stop, default 2)
+#                                0x20003380 = float actually used by the engine (1 - 2^(-n/12): 0.1091, 0.5, 1.0)
+# Storage: external EEPROM bytes 0x1A (mode) and 0x1B (mode ^ 0xA5, validity check). These two bytes sit between
+# the sensor-calibration arrays (2..0x19) and the "SOMA" magic (0x1C) and are unused in V1.7.
+# Mechanism: a hook at the top of the main-loop pass calls mod_tick, which (a) on its first call loads the value and
+# (b) later writes it only when the mode changed.  Shadow state lives at 0x2001FFF0 (magic, last mode) at the very top of DTCM.
+[mod]
+id = "persist-pitchdown"
+version = "0.1.0"
+fw_version = "1.7"
+targets = ["70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572"]   # TERRA_V1.7.smf
+
+# Replaces `ldr.w r0,[pc,#..]` (= 0x2001BC0C, the USART1 handle) at LAB_08035A56, the head of the main-loop pass.
+[[hook]]
+at = 0x08035A56
+expect = "dff86c0b"
+asm = """
+    push.w {r0, r1, r2, r3, r12, lr}
+    bl mod_tick
+    pop.w {r0, r1, r2, r3, r12, lr}
+    movw r0, #0xBC0C
+    movt r0, #0x2001
+    b.w #0x08035A5A
+
+mod_tick:
+    push {r4, r5, r6, r7, lr}
+    sub sp, sp, #12
+    movw r4, #0xFFF0
+    movt r4, #0x2001            @ r4 = shadow state: [0] magic, [4] last mode
+    movw r5, #0xAB1E
+    movt r5, #0x7E57            @ r5 = magic
+    movw r7, #0x337C
+    movt r7, #0x2000            @ r7 = &mode index (float is at +4)
+    ldr r6, [r4]
+    cmp r6, r5
+    bne first
+
+    ldr r0, [r7]                @ current mode
+    ldr r1, [r4, #4]            @ last saved/loaded mode
+    cmp r0, r1
+    beq done
+    cmp r0, #2
+    bhi done                    @ ignore anything out of range
+    str r0, [r4, #4]
+    strb r0, [sp]
+    eor r0, r0, #0xA5
+    strb r0, [sp, #1]
+    movs r0, #0x1A
+    mov r1, sp
+    movs r2, #2
+    bl #0x0803AE78                @ eeprom_write(addr, buf, len)
+done:
+    add sp, sp, #12
+    pop {r4, r5, r6, r7, pc}
+
+first:
+    str r5, [r4]
+    movs r0, #0x1A
+    mov r1, sp
+    movs r2, #2
+    bl #0x0803AE58                @ eeprom_read(addr, buf, len)
+    ldrb r0, [sp]
+    ldrb r1, [sp, #1]
+    eor r1, r1, #0xA5
+    cmp r0, r1
+    bne use_default
+    cmp r0, #2
+    bls apply
+use_default:
+    movs r0, #2
+apply:
+    str r0, [r7]
+    str r0, [r4, #4]
+    cmp r0, #0
+    beq f0
+    cmp r0, #1
+    beq f1
+    movw r1, #0x0000
+    movt r1, #0x3F80            @ 1.0
+    b setf
+f1:
+    movw r1, #0x0000
+    movt r1, #0x3F00            @ 0.5
+    b setf
+f0:
+    movw r1, #0x7058
+    movt r1, #0x3DDF            @ 1 - 2^(-2/12)
+setf:
+    str r1, [r7, #4]
+    b done
+"""
