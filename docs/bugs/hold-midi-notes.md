@@ -52,6 +52,7 @@ t2:     ldr r1,[sp,#0x10]; ldrh r0,[r1]; ldrh.w r1,[r1,#0x60]; orrs r0,r1
         b.w 0x08039ED6
 ```
 Check r1 liveness at both sites before shipping (r1 is reloaded right after at 0x080399E6; at site 2 it is dead after `ldrh r0,[r1]`).
+The shipped mod (`mods/hold-midi/mod.toml`) uses `ip` instead of `r1` for the hold flag, and `movw/movt` for the displaced literal load.
 
 ## Side effects to decide
 * Poly aftertouch / channel pressure for held voices: with the key released the sensor value is 0, so aftertouch goes to 0.
@@ -60,5 +61,5 @@ Check r1 liveness at both sites before shipping (r1 is reloaded right after at 0
 
 ## Open risks
 * Trampolines need ~40 bytes of new code. Free flash starts at `0x08059A54`; whether the bootloader accepts a longer `.smf`
-  payload is untested (Phase 1 test). If not, search the image for dead padding.
-* Nothing here has been tested on a device.
+  payload is stage 1 of [flashing-test-plan.md](../flashing-test-plan.md). If not, search the image for dead padding.
+* Device test results are recorded in [flashing-test-plan.md](../flashing-test-plan.md).

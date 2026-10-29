@@ -6,6 +6,8 @@ from dataclasses import dataclass
 
 from .container import Container, parse
 
+LOAD_BASE = 0x08020000   # flash address of payload byte 0 (the bootloader sits below it)
+
 
 @dataclass
 class FirmwareInfo:

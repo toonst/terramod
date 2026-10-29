@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/images/soma-terra.png" alt="Soma Laboratory Terra" width="420"></p>
 
-Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It lets you build a *modded* firmware
+Tools, notes and a few mods for the **Soma Laboratory Terra** synthesizer. It lets you build a *modded* firmware
 (`.smf`) from your own copy of the official firmware, and install it with the USB stick-based update procedure.
 
 > **Unofficial and unsupported.** Not affiliated with Soma Laboratory. You use this at your own risk and can lose
@@ -13,10 +13,10 @@ Tools, notes and a first mod for the **Soma Laboratory Terra** synthesizer. It l
 
 | Path | What |
 |---|---|
-| `tools/terra_fw/` | Python package + `terra-fw` CLI: container/CRC, preset (`.smp`) codec, patcher |
+| `tools/terra_fw/` | Python package + `terra-fw` CLI: container/CRC, preset (`.smp`) codec, patcher, emulator helper (`emu.py`) for testing mods |
 | `mods/` | Mods (a `mod.toml` per mod): `hold-midi` (Note Hold also holds the MIDI notes), `persist-settings` (pitch-down mode and MIDI mode survive power-off; supersedes `persist-pitchdown`) |
 | `symbols/terra_v1.7.toml` | Reverse-engineering notes: addresses, structs, findings for V1.7 |
-| `docs/` | `midi-sysex.md` (MIDI/SysEx internals), `bugs/` (analysis of fixed bugs), `flashing-test-plan.md`, `PLAN.md` (roadmap), `ghidra_import.md` |
+| `docs/` | `midi-sysex.md` (MIDI/SysEx internals), `eeprom-map.md` (what the firmware stores where), `bugs/` (analysis of fixed bugs), `mods-persist-settings.md`, `flashing-test-plan.md`, `PLAN.md` (roadmap), `ghidra_import.md` |
 | `ghidra/scripts/` | Ghidra scripts (SVD register labels, RAM image loader) |
 | `tools/scatter_emu.py` | Runs the firmware's startup copy in an emulator to recover the RAM-resident code (ITCM) |
 | `reference/` | STM32H743 SVD, RM0433 reference manual (SOMA's PDFs are not included, see [AGENTS.md](AGENTS.md)) |
@@ -37,7 +37,7 @@ Download SOMA's official firmware from <https://somasynths.com/firmware_terra/> 
 ```bash
 shasum -a 256 firmware/TERRA_V1.7.smf
 # 70db296e2db1f553f8378db35eb14aebccc3810a83065b058f47a6f45a8a3572   <- must match; mods refuse any other file
-uv run pytest                                            # sanity check (7 tests)
+uv run pytest                                            # sanity check (tests that need the official files skip without them)
 ```
 
 ## 2. Build and install an existing mod
@@ -89,7 +89,10 @@ Rules of thumb:
 * Respect the calling convention: `r0-r3`, `r12` (`ip`) are scratch only if the surrounding code does not keep a live value there. Check the code around the hook.
 * Code that runs from ITCM (addresses below `0x10000`, e.g. the audio interrupt at `0x9730`) is copied to RAM at boot, so it can't be patched in flash this way yet.
 * keystone silently mis-assembles a backward `cbz`/`cbnz`: use `cmp` + `beq` instead.
-* Run `uv run pytest` and, for new hooks, emulate the trampoline (see how `hold-midi` was checked in `docs/bugs/hold-midi-notes.md`).
+* Don't reuse RAM, EEPROM bytes or hook sites another mod already uses: the `[[allocation]]` entries in the symbol map list them
+  (the patcher only detects two mods hooking the same address).
+* Run `uv run pytest`: `test_mods.py` builds every `mods/*/mod.toml` (even without the official firmware). For new hooks, also emulate
+  the trampoline against the real image with `terra_fw.emu` (`tools/terra_fw/tests/test_persist_settings.py` is the example).
 
 ### Finding where to hook
 1. Read [symbols/terra_v1.7.toml](symbols/terra_v1.7.toml) and [docs/midi-sysex.md](docs/midi-sysex.md): the main loop, MIDI generator, SysEx handler, EEPROM layout and sensor scan are already mapped.

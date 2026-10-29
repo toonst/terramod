@@ -3,6 +3,13 @@
 Goal: be able to **make, combine and load modifications** to the Terra's behaviour
 without ever losing the ability to go back to stock firmware.
 
+**Status (2026-10-29).** This was written before the first line of code; sections 1-4 keep the original reasoning, with corrections
+marked. Done so far: container/CRC/preset tooling with round-trip tests (Phase 1), a symbol map covering startup, audio path, sensors,
+MIDI/SysEx and EEPROM (Phase 2), and a Tier-2 patcher for hand-written Thumb trampolines (`terra-fw patch`) with three mods
+(`hold-midi`, `persist-settings`, superseded `persist-pitchdown`), all emulated against the real image. Not done: Tier-1 byte patches by
+symbol, C mods, modkit. Device results are recorded in [flashing-test-plan.md](flashing-test-plan.md); only the file-name pattern is
+recorded as verified on a Terra so far.
+
 ---
 
 ## 1. What we know so far
@@ -21,7 +28,7 @@ without ever losing the ability to go back to stock firmware.
 0x004  03 00 00 00       format version (3)
 0x008  "TERR"            device tag
 0x00C  u32 LE            CRC-32 over 0x010..EOF  ← confirmed
-0x010  96 × 32-byte preset slots (8 groups × 12), 0xFF-filled = empty slot
+0x010  96 × 32-byte preset slots (6 banks × 16 sensors), 0xFF-filled = empty slot
 0xC10  global tables (pitch-shifter transposition table: 16 combos, signed semitones,
        plus fine-tune rows), rest 0xFF / 0x00
 ```
@@ -30,7 +37,8 @@ without ever losing the ability to go back to stock firmware.
   `0xFFFFFFFF`, no reflection, fed as little-endian 32-bit words). That is strong
   evidence the main MCU is an **STM32**, and the same routine is probably used for the
   firmware container.
-- The 4,048-byte size and the `0xFF` fill look like a raw dump of a flash page/region.
+- The 4,048-byte size and the `0xFF` fill look like a raw dump of a flash page/region. *(Answered: it is external I2C EEPROM
+  `0x40..0xFFF`; see [eeprom-map.md](eeprom-map.md).)*
 - Each 32-byte preset slot:
   - bytes 0–11: note of each of the 12 note sensors (MIDI note, bit 7 = per-sensor flag, meaning TBD)
   - bytes 12–23: per-sensor microtuning offset (signed int8, likely 1/125-semitone steps)
@@ -40,7 +48,7 @@ without ever losing the ability to go back to stock firmware.
 ### `TERRA_V1.7.smf` (firmware): first look
 
 ```
-0x000  "SOMA"  "...."  "TERR"  + 4-byte check value (likely the same CRC, to confirm)
+0x000  "SOMA"  "...."  "TERR"  + 4-byte check value (confirmed: the same CRC, over 0x10..EOF)
 0x010  plain Cortex-M vector table (initial SP 0x2001CD58, reset → 0x08051CC5)
 ...    Thumb-2 code, float constants, tables
 tail   initialised-data tables (the factory pitch-shifter table is visible there)
@@ -52,8 +60,9 @@ tail   initialised-data tables (the factory pitch-shifter table is visible there
   resident at the bottom of flash**, almost certainly the USB-stick bootloader.
   Because the stock updater only replaces the application, the bootloader should keep
   working when a modded application crashes. **This has to be verified** (Phase 0 gate).
-- Large vector table and FPU-style float constants point to an F4/F7-class part.
-  The exact part number is still to be confirmed.
+- ~~Large vector table and FPU-style float constants point to an F4/F7-class part.~~
+  *Corrected:* the peripheral addresses (RCC at `0x58024400`, MPU/cache setup) make it an **STM32H7** (Cortex-M7);
+  the exact part number is still unknown. See `symbols/terra_v1.7.toml`.
 
 ### Platform facts (from SOMA docs and forum)
 
@@ -99,6 +108,10 @@ Each tier builds on the one before, and you get usable results from Tier 0 onwar
 ---
 
 ## 4. Architecture
+
+*Implemented so far:* `terra-fw patch` (`tools/terra_fw/terra_fw/patcher.py`) does steps 1, 5 and 6 below for `[[hook]]` entries
+(`at` / `expect` / hand-written Thumb `asm`, assembled with keystone and appended after the image), with hook-site overlap detection.
+Mods use raw addresses for now. The `[[patch]]` byte patches, symbol names, C code and `[resources]` below are still proposals.
 
 ```
   official TERRA_V1.7.smf ─┐
@@ -153,15 +166,17 @@ porting to V1.8 means porting the map, not every mod.
 
 ```
 terra_firmware/
-  docs/                  # PLAN.md, ghidra_import.md
-  tools/terra_fw/        # Python: container, CRC, .smp codec, CLI, tests
+  docs/                  # PLAN.md, ghidra_import.md, findings, mod notes, flash test plan
+  tools/terra_fw/        # Python: container, CRC, .smp codec, patcher, emulator helper, CLI, tests
+  tools/scatter_emu.py   # recovers the RAM-resident (ITCM) code
   symbols/               # per-firmware-version symbol maps
+  mods/                  # one folder per mod with its mod.toml
   firmware/              # official *.smf / *.smp (git-ignored) + KNOWN.md hashes
   reference/             # STM32H743.svd, RM0433.pdf, README
-  ghidra/                # local Ghidra project (git-ignored)
-  third_party/STM32CubeH7/   # git submodule (HAL source for matching decompiled code)
-  build/                 # generated (app.bin, decompiler dumps), git-ignored
-  sdk/ mods/ modkit/     # planned (Phases 3-5)
+  ghidra/                # Ghidra scripts; local Ghidra project (git-ignored)
+  third_party/STM32CubeH7/   # optional git submodule (HAL source for matching decompiled code)
+  build/ dist/           # generated (app.bin, RAM images, built .smf), git-ignored
+  sdk/ modkit/           # planned (Phases 4-5)
 ```
 
 ---
@@ -170,16 +185,19 @@ terra_firmware/
 
 ### Phase 0: Groundwork & safety gate
 
-- [ ] Init git repo. `.gitignore` all `*.smf`/`*.smp`. Record SHA-256 of every
+- [x] Init git repo. `.gitignore` all `*.smf`/`*.smp`. Record SHA-256 of every
       official file in `firmware/KNOWN.md`.
-- [ ] Read the main manual (update procedure, p. 23), the *Additional Functions*
+- [x] Read the main manual (update procedure, p. 23), the *Additional Functions*
       manual, and the SysEx spec doc. Note how presets are exported and backed up.
+      (Backup: hold S, press G, then H; see README.)
 - [ ] **Back up your own presets** (export to stick, or SysEx dump if the spec allows).
-- [ ] Prepare 2 known-good sticks (small, FAT16), one permanently holding stock V1.7.
+- [ ] Prepare 2 known-good sticks (FAT32, 1-32 GB per the manual), one permanently holding stock V1.7.
 - [ ] **Recovery gate:** find out how the bootloader is entered (always at power-up
       when a stick is present? or a button combo?) and whether it runs *before* the
       application. Use the manual/forum, or ask SOMA directly. Do not ship any
       Tier 1+ build to the device until this is answered.
+      *Partly answered:* it is entered with L+E held at power-on (manual p. 23) and lives below `0x08020000`;
+      that it still runs after a *crashing* application is unverified.
 - [ ] Optional: photograph the PCB to confirm the MCU part number. This fixes flash
       size, sector map and RAM. Opening the case may affect warranty.
 
@@ -187,12 +205,13 @@ terra_firmware/
 
 ### Phase 1: Container & preset tooling (`terra_fw`, Tier 0)
 
-- [ ] `terra_fw.container`: parse and validate `.smf`/`.smp` headers, STM32-CRC
+- [x] `terra_fw.container`: parse and validate `.smf`/`.smp` headers, STM32-CRC
       implementation, `unpack` (→ `app.bin` + metadata JSON), `pack`.
-- [ ] Confirm the `.smf` check value uses the same CRC as `.smp` (or identify it).
-- [ ] Round-trip test: `pack(unpack(x)) == x` for every official file.
+- [x] Confirm the `.smf` check value uses the same CRC as `.smp` (or identify it).
+- [x] Round-trip test: `pack(unpack(x)) == x` for every official file.
 - [ ] `terra_fw.presets`: full `.smp` codec ↔ JSON/YAML, decoding the packed
       parameter bits by diffing presets saved on the device with one parameter changed.
+      (Done: lossless codec ↔ JSON. Open: the 8 parameter bytes and the note-byte flag.)
 - [ ] Scala `.scl` + `.kbm` → 12 sensors + microtuning offsets (with the
       125-steps/semitone quantisation).
 - [ ] SysEx client (Python `mido`, later WebMIDI) per SOMA's spec.
@@ -200,21 +219,24 @@ terra_firmware/
       so it only validates the workflow). Then one harmless Tier-1 change (e.g. a
       value in the pitch-shifter default table) to prove the device accepts modified
       images. If it rejects them → signature present → stay Tier 0 (principle 6).
+      (Became stages 0-1 of [flashing-test-plan.md](flashing-test-plan.md); results are recorded there.)
 
 **Done when:** presets and scales are editable from the computer, and a modified
 image is accepted (or a hard "no" is established).
 
 ### Phase 2: Understand the firmware (interoperability RE)
 
-- [ ] Load `app.bin` in Ghidra at the right base address with the MCU's SVD file
+- [x] Load `app.bin` in Ghidra at the right base address with the MCU's SVD file
       for peripheral names (Ghidra MCP is already available here).
 - [ ] Landmark subsystems: reset → `main`, audio DMA interrupt and block render,
       codec setup, sensor scanning/calibration, pots, LED triangle, preset
       load/save + flash layout, SysEx parser, MIDI in/out, USB-host/updater handoff.
+      (Done: startup, audio output path (TIM3 ISR in ITCM → I2S1), touch scan, EEPROM layout, SysEx, MIDI in/out.
+      Open: engine call tree, codec setup, pots, LEDs. The updater is in the bootloader, not in this image.)
 - [ ] Map **resources**: free flash after the image end (and erase-sector
       boundaries), spare RAM between `.bss` end and the stack, audio-callback CPU
-      headroom.
-- [ ] Write `symbols/terra_v1.7.toml` as you go.
+      headroom. (Partly: flash `0x08059A54..0x0805FFFF`, top of DTCM, EEPROM `0x1A/0x1B`; see `[[allocation]]` in the symbol map.)
+- [x] Write `symbols/terra_v1.7.toml` as you go.
 - [ ] Get older official images (1.5/1.6) if SOMA still hosts them. Diffing releases
       (Ghidra Version Tracking / BinDiff) pinpoints features named in the changelog
       and rehearses porting symbols to future versions.
@@ -227,6 +249,7 @@ and the free-resource map is written down.
 - [ ] Implement the mod manifest, `expect`/`replace` patches by symbol, conflict
       detection (overlapping ranges), build report (what changed where).
 - [ ] `terra-mod build --fw TERRA_V1.7.smf mods/a mods/b -o out.smf`.
+      (Exists for hooks as `terra-fw patch STOCK.smf OUT mods/a/mod.toml mods/b/mod.toml [--auto-name]`.)
 - [ ] 2–3 real Tier-1 mods (alternate transposition tables, default "A sensor"
       mode, a parameter range).
 
@@ -245,6 +268,10 @@ device.
         relocate the overwritten prologue so `wrap` mods can call the original
 - [ ] Rules: respect the audio deadline, never block in ISRs, preserve FPU state
       conventions, no flash writes from mods (until Phase 5 provides a safe API).
+      EEPROM writes are allowed from the main loop only, through the firmware's `eeprom_write`, on change only, and only to bytes
+      proven unused (as `persist-settings` does).
+- Until then, Tier-2 mods are hand-written Thumb trampolines (`hold-midi`, `persist-settings`), checked by emulating the patched
+  image with `terra_fw.emu`.
 - [ ] A **debug channel** mod: emit trace values as MIDI SysEx or CC so you can
       observe internals without a debugger.
 
@@ -263,6 +290,8 @@ hook can call the original.
       collisions), plus optional sensor-combo + LED feedback.
 - [ ] Persistent mod settings only in a flash area proven unused in Phase 2, with
       wear-aware writes. Never in the preset region.
+      (The settings live in the external EEPROM, not flash. Its config block has only `0x1A/0x1B` free, and `persist-settings` uses
+      them, so more mod settings need another proven-unused EEPROM range.)
 - [ ] Per-firmware-version adapter, so the API stays stable when SOMA ships V1.8.
 
 **Done when:** an audio insert effect and a MIDI mod run together through modkit.
@@ -306,14 +335,18 @@ hook can call the original.
 ## 7. Open questions
 
 1. How exactly does the bootloader start, and does it run independently of the app?
+   *Partly answered:* L+E at power-on; survival of a crashing app is unverified.
 2. Does the `.smf` check value use the same CRC as `.smp`, and is anything else verified?
-3. Exact MCU part (flash/RAM size, sector map)?
+   *Same CRC (confirmed).* Whether the bootloader checks anything else is answered by stage 1 of the flash test plan.
+3. Exact MCU part (flash/RAM size, sector map)? *STM32H7 family; part unknown.*
 4. Where in flash do user presets live, and is it the region `.smp` mirrors?
-5. Meaning of the note-byte bit 7 flag and the 8 packed parameter bytes.
+   *Answered:* not flash but external I2C EEPROM `0x40..0xFFF`, exactly the `.smp` payload.
+5. Meaning of the note-byte bit 7 flag and the 8 packed parameter bytes. *Open.*
 6. Can the device export a full preset bank to stick (for backup/round-trip tests)?
+   *Yes:* hold S, press G, then H writes `TERRA___.smp` (manual p. 24).
 
 ## 8. Immediate next steps
 
-1. Phase 0 checklist (docs, backups, recovery question; possibly email SOMA).
-2. Build `tools/terra_fw` container + `.smp` codec with round-trip tests.
-3. Confirm the `.smf` checksum, then load the image in Ghidra at its base address.
+1. Run the flash test plan (padtest, `hold-midi`, `persist-settings`) and record the results.
+2. Let mods declare the RAM/EEPROM they use so the patcher can detect collisions (today only hook sites are checked).
+3. Decode the packed preset parameters (diff device-saved presets with one parameter changed).

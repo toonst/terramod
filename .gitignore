@@ -14,7 +14,7 @@ ghidra/Terra.lock
 ghidra/Terra.lock~
 ghidra/Terra.rep/
 dist/
-# SOMA documentation (copyrighted): download from https://somasynths.com/terra_firmware/ into reference/
+# SOMA documentation (copyrighted): download from https://somasynths.com/firmware_terra/ into reference/
 reference/TERRA-manual-*.pdf
 reference/Terra_Additional_Functions*.pdf
 # Tooling state

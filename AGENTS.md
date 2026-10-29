@@ -21,12 +21,16 @@ git -C third_party/STM32CubeH7 submodule update --init --depth 1 \
 (The shallow flags are untested; `git submodule update --init --recursive` works but downloads everything.)
 
 ## Working method
-* Start with [symbols/terra_v1.7.toml](symbols/terra_v1.7.toml) (addresses, structs, confirmed vs inferred), then [docs/midi-sysex.md](docs/midi-sysex.md)
-  and the worked example [docs/bugs/hold-midi-notes.md](docs/bugs/hold-midi-notes.md).
+* Start with [symbols/terra_v1.7.toml](symbols/terra_v1.7.toml) (addresses, structs, confirmed vs inferred, and the `[[allocation]]`
+  entries for RAM/EEPROM/flash that mods already use), then [docs/midi-sysex.md](docs/midi-sysex.md), [docs/eeprom-map.md](docs/eeprom-map.md)
+  and the worked examples [docs/bugs/hold-midi-notes.md](docs/bugs/hold-midi-notes.md) and [docs/mods-persist-settings.md](docs/mods-persist-settings.md).
 * Ghidra setup: [docs/ghidra_import.md](docs/ghidra_import.md) (base `0x08020000`; scripts in `ghidra/scripts/`). The Ghidra MCP plugin only reads,
   renames and comments; it cannot create functions or run analyzers, so ask the user to do those in the GUI.
 * Engine code runs from ITCM RAM and is not in the flash image as such; recover it with `uv run python tools/scatter_emu.py build/app.bin build/ram`.
+* Emulate before asking for a hardware test: `terra_fw.emu` runs any piece of the (patched) image in Unicorn with a fake EEPROM and
+  stubbed calls (see `tools/terra_fw/tests/test_persist_settings.py` and `test_eeprom_boot.py`).
 * Record every finding in the symbol map with its status (`confirmed` / `inferred` / `guess`) and say how it was verified.
+  A new mod that takes RAM, EEPROM or flash adds an `[[allocation]]` entry there.
 * Use `uv run` for everything (`uv run terra-fw …`, `uv run pytest`).
 
 ## Rules

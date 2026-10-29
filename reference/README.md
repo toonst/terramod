@@ -7,4 +7,4 @@ The exact MCU part is not confirmed yet; see `symbols/terra_v1.7.toml`.
 
 ## Not in git (download yourself, keep in this folder)
 - `TERRA-manual-ENG-v*.pdf` and `Terra_Additional_Functions FW V1.7.pdf`: SOMA's manual and addendum (copyright SOMA Laboratory),
-  from https://somasynths.com/terra_firmware/
+  from https://somasynths.com/firmware_terra/

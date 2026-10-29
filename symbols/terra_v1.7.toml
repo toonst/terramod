@@ -57,9 +57,10 @@ empty infinite loop. All real work is therefore interrupt driven or inside FUN_0
 name = "hw_config_and_leds_init"
 address = 0x0803ABA6
 status = "inferred"
-notes = """Reads a 0x40-byte config block (magic at +0x1c) into 0x..., substitutes defaults (16 x u16 = 400,
-24 x u8 = 0x32) if empty or invalid, flashes the LEDs when defaults had to be used, then brings up
-peripherals. Looks like sensor/pot calibration storage. Storage medium not identified yet."""
+notes = """Reads the 0x40-byte config block at EEPROM 0 (eeprom_read; "SOMA" magic at +0x1C), substitutes defaults
+(16 x u16 = 400, 24 x u8 = 0x32) and rewrites bytes 0..0x3F if the magic is missing, flashes the LEDs when defaults
+had to be used, then brings up peripherals. Its EEPROM accesses are emulated in tools/terra_fw/tests/test_eeprom_boot.py;
+the EEPROM layout is in docs/eeprom-map.md."""
 
 [[function]]
 name = "delay_ms"
@@ -94,10 +95,61 @@ notes = "hand-rolled I2C event ISR (reads ISR/CR1 flag bits); shares code with t
 name = "app_main_loop"
 address = 0x080358A8
 status = "confirmed"
-notes = """Never returns. ~2200 lines of decompiled output. Superloop: polls FUN_0803AAFE until it returns != 1,
-then dispatches on a mode variable (values 3/4/5 -> FUN_0803C25C / FUN_080398BE / FUN_08039940),
-reloads the preset block (FUN_08031EF4) when the sensor bits change. Uses the FPU heavily. Most likely the
-UI/sensor/preset state machine. Audio rendering has not been found in it yet."""
+notes = """Never returns. ~2200 lines of decompiled output. Superloop: polls touch_scan (FUN_0803AAFE) until it returns != 1.
+MIDI part of each pass (confirmed, disassembly 0x08035AB2..0x08035ADA): if the SysEx state (0x20019BB4) is 4 or 5, call
+sysex_tx_pump; otherwise, if ctx+0x618 != 0, call midi_out_pump; then, if the SysEx state is 3, call sysex_dispatch (0x0803C25C).
+Reloads the preset block (FUN_08031EF4) when the sensor bits change. Uses the FPU heavily. Most likely the
+UI/sensor/preset state machine. Audio rendering is not here: it runs in the TIM3 interrupt in ITCM (see [itcm])."""
+
+[[label]]
+name = "main_loop_pass_head"
+address = 0x08035A56
+status = "confirmed"
+notes = """Head of every app_main_loop pass: `ldr.w r0,[pc,..]` (= 0x2001BC0C, the USART1 handle). Hook site of the
+persist-settings / persist-pitchdown mods (verified by emulating the patched image: test_persist_settings.py)."""
+
+[[label]]
+name = "pitchdown_mode_selector"
+address = 0x08036E9E
+status = "confirmed"
+notes = """Block in app_main_loop (0x08036E9E..0x08036ED4) that sets the "A + tuning" pitch-down mode: stores the index to
+pitchdown_mode and the matching float to pitchdown_amount (0x3DDF7058, 0.5, or s28 = 1.0). Verified by disassembly.
+The address 0x2000337C occurs once as a literal (0x0803797C) and only this block's three loads use it, so this is the
+only code that touches pitchdown_mode (barring computed addresses)."""
+
+[[label]]
+name = "midi_settings_save"
+address = 0x080363C8
+status = "confirmed"
+notes = """In app_main_loop: byte ctx+0x1E8 & 0x33 (channel bits only, the mode bits 2-3 are dropped) -> ctx+0x1EA and
+eeprom_write(0x38, .., 1). This is why the MIDI mode is lost at power-off. Verified by disassembly."""
+
+[[label]]
+name = "midi_mode_change_check"
+address = 0x080363F0
+status = "confirmed"
+notes = """In app_main_loop: if u16 ctx+0x1E8 != ctx+0x1EC, send midi_enqueue_all_off on channel ctx+0x1EE, clear ctx+0x668..0x670
+and copy ctx+0x1E8 to ctx+0x1EC; then if (ctx+0x1E8 & 0xC) != 0 set ctx+0x618 = 1. Verified by disassembly
+(0x080363F0..0x0803641E). Not yet checked: whether this block runs on every pass or only inside the settings UI
+(persist-settings sets ctx+0x618 itself, so it works either way)."""
+
+[[function]]
+name = "preset_save"
+address = 0x08038808
+status = "inferred"
+notes = "writes EEPROM[0] (last used preset) when a preset is saved (docs/eeprom-map.md, static)"
+
+[[function]]
+name = "preset_apply_live"
+address = 0x08038AB4
+status = "inferred"
+notes = "used by SysEx writes with preset 0x7F to apply a record to the live preset instead of EEPROM (docs/midi-sysex.md)"
+
+[[function]]
+name = "sensor_calibration"
+address = 0x080330B4
+status = "inferred"
+notes = "writes EEPROM 0x02..0x19 (at 0x080338E2) and 0x20..0x3F (at 0x080338D0) (docs/eeprom-map.md, static)"
 
 [[function]]
 name = "touch_scan"
@@ -141,12 +193,11 @@ status = "confirmed"
 vector30 = "DMA1_Stream3 -> USART DMA (handle 0x2001BE20, used next to the MIDI UART code), jumps to HAL callback 0x0803C478"
 vector72_73 = "DMA2_Stream0/1 -> RX-complete for I2C1/I2C2 touch reads (handles 0x2001B98C / 0x2001BA08): sets timeout counters at 0x2001C3F0/F4 to 100, stops DMA, re-enables I2C interrupts"
 vector45 = """vec 45 handler at 0x0805161E is a veneer `ldr pc,[pc]` to 0x00009731, i.e. code in ITCM (0x00000000 region),
-copied there by the scatter loader. 'Fast code' placed in ITCM is the best candidate for the audio render path.
-The flash source of that ITCM image has NOT been located yet (scatter table at 0x08051BD8..0x08051C60 needs a
-careful parse)."""
+copied there by the scatter loader. tools/scatter_emu.py runs the scatter loader and recovers that image (see [itcm]);
+it holds the TIM3 audio interrupt."""
 
 [itcm]
-# Reproduce with: python tools/scatter_emu.py build/app.bin build/ram   (Unicorn, runs scatterload at 0x08051B8C)
+# Reproduce with: uv run python tools/scatter_emu.py build/app.bin build/ram   (Unicorn, runs scatterload at 0x08051B8C)
 # ITCM image (44,888 bytes at 0x00000000) is copied from flash by the scatter loader. It holds the
 # engine code: float/VFP heavy, touches only TIM3 SR/ARR, GPIOA IDR, GPIOD BSRR directly.
 tim3_isr = 0x00009730   # confirmed: vec 45 -> veneer 0x0805161E -> ITCM 0x9730
@@ -200,7 +251,8 @@ running_status = "enqueue helpers only emit a status byte when the channel/type 
 name = "midi_out_pump"
 address = 0x08039940
 status = "confirmed"
-notes = """Called from app_main_loop when ctx+0x30C != 0 and the SysEx state is not 4/5. If TXE: pops one u16 from the
+notes = """Called from app_main_loop (0x08035ACC) when ctx+0x618 ("MIDI output active") != 0 and the SysEx state is not 4/5
+(confirmed by disassembly; an earlier note here said ctx+0x30C, which is wrong). If TXE: pops one u16 from the
 queue to USART1_TDR. Then generates new events: per-voice Note On/Off with velocity from float pressure state
 (clamped to 0x7F), pitch bend, poly pressure/channel pressure, CCs 0x10-0x13, 0x14+(0..11), 0x66-0x6B."""
 
@@ -278,8 +330,9 @@ not_referenced = ["SAI1", "SAI2", "SAI4", "USB OTG (no literal found)"]
 
 [open_questions]
 audio = "MOSTLY ANSWERED: see [audio_path]. Still open: how DMA runs (circular?), whether TIM3 is the sample clock, and the engine call tree inside ITCM"
-presets = "ANSWERED: external I2C EEPROM at 0xA0; still need the preset layout inside it and how .smp files map to it"
+presets = "ANSWERED: external I2C EEPROM at 0xA0; layout in [eeprom_layout] and docs/eeprom-map.md; the .smp payload is EEPROM 0x40..0xFFF"
 sensors = "ANSWERED (mostly): FUN_0803AAFE reads 2 x 12 touch channels over I2C1/I2C2 via DMA"
+preset_params = "OPEN: meaning of the 8 packed parameter bytes per preset and of bit 7 of the note bytes"
 
 [[irq]]
 vector = 30
@@ -313,8 +366,77 @@ irqn = 57
 handler = 0x08051803
 st_h7_name = "DMA2_Stream1"  # confirmed vs SVD (DMA2_STR1)
 
+# ---------------------------------------------------------------------------------------------
+# RAM variables. ctx = 0x20003394 (the synth/MIDI state struct, see [midi.queue]).
+[[data]]
+name = "pitchdown_mode"
+address = 0x2000337C
+type = "u32"
+status = "confirmed"
+notes = "A + tuning pitch-down mode: 0 = 2 semitones, 1 = 12 semitones, 2 = until full stop (default). Only pitchdown_mode_selector references it."
+
+[[data]]
+name = "pitchdown_amount"
+address = 0x20003380
+type = "float"
+status = "confirmed"
+notes = "1 - 2^(-n/12) for the mode: 0x3DDF7058 (2 st), 0.5 (12 st), 1.0 (stop). Read by the engine at 0x08025DF4/0x08025E0C (disassembly)."
+
+[[data]]
+name = "midi_settings"
+address = 0x2000357C   # ctx+0x1E8
+type = "u16"
+status = "confirmed"
+notes = """MIDI output settings: mode in bits 2-3 (0 off, 4, 8, 0xC = MPE; see [midi.queue]), channel selection in bits 0, 1, 4, 5.
+Only `& 0x33` is saved (midi_settings_save). Restoring the mode bits at boot is what persist-settings does (emulated in its tests)."""
+
+[[data]]
+name = "midi_settings_prev"
+address = 0x20003580   # ctx+0x1EC
+type = "u16"
+status = "confirmed"
+notes = "previous value of midi_settings; a difference triggers all-notes-off and the copy (midi_mode_change_check)"
+
+[[data]]
+name = "midi_out_active"
+address = 0x200039AC   # ctx+0x618
+type = "u32"
+status = "confirmed"
+notes = "midi_out_pump runs only while this is != 0 (disassembly at 0x08035AC6); set by midi_mode_change_check when the mode bits are != 0"
+
+[[data]]
+name = "voice_sensor"
+address = 0x20003670   # ctx+0x2DC
+type = "u16[12]"
+status = "confirmed"
+notes = "voice slot -> sensor index (docs/bugs/hold-midi-notes.md, disassembly)"
+
+[[data]]
+name = "voice_key_down"
+address = 0x200036A0   # ctx+0x30C
+type = "u16[12]"
+status = "confirmed"
+notes = "voice key-down flag; cleared on key release. midi_out_pump tests only this (the hold-midi bug)"
+
+[[data]]
+name = "voice_hold"
+address = 0x20003700   # ctx+0x36C
+type = "u16[12]"
+status = "confirmed"
+notes = "voice hold flag: copied from voice_key_down when Note Hold is pressed, cleared when hold is released (always +0x60 from voice_key_down)"
+
 [free_resources]
-# Flash after the image: 0x08059A54..0x0805FFFF is the rest of sector 3. Sectors 4+ unknown:
-# TODO find where presets/calibration are stored (external memory via FMC? QSPI? internal flash?).
+# Flash after the image: 0x08059A54..0x0805FFFF is the rest of sector 3. Sectors 4+ unknown.
 # TODO RAM map: DTCM 0x20000000 (128K), AXI SRAM 0x24000000, SRAM1-3 0x30000000, SDRAM at 0xC0000000?
 # TODO audio callback headroom.
+
+# Resources already taken by mods in this repo. A new mod must not reuse them (the patcher only detects shared hook sites).
+[[allocation]]
+what = "flash 0x08059A54.. (appended trampolines)"
+by = "all mods; the patcher places them one after the other"
+[[allocation]]
+what = "RAM 0x2001FFF0..0x2001FFF7 (top of DTCM: magic + last saved settings byte; nothing in the image references it)"
+by = "persist-settings (and the superseded persist-pitchdown)"
+[[allocation]]
+what = "EEPROM 0x1A..0x1B (unused by the stock firmware, see docs/eeprom-map.md)"
+by = "persist-settings (and the superseded persist-pitchdown, same format)"

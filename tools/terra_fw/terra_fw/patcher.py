@@ -24,8 +24,7 @@ from typing import List
 from keystone import KS_ARCH_ARM, KS_MODE_THUMB, Ks
 
 from .container import Container, parse
-
-LOAD_BASE = 0x08020000
+from .firmware import LOAD_BASE
 
 
 class PatchError(RuntimeError):
