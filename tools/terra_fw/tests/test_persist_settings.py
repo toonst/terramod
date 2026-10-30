@@ -122,7 +122,7 @@ def test_midi_off_does_not_enable_output(rig):
 
 
 def test_old_pitchdown_only_format_is_compatible(rig):
-    r = rig({0x1A: 0, 0x1B: 0 ^ 0xA5}, midi=0x14)          # written by the persist-pitchdown mod
+    r = rig({0x1A: 0, 0x1B: 0 ^ 0xA5}, midi=0x14)          # written by the removed persist-pitchdown mod
     r.tick()
     assert r.mode()[0] == 0 and r.midi() == 0x10 and r.active() == 0
 

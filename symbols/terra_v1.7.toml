@@ -106,7 +106,7 @@ name = "main_loop_pass_head"
 address = 0x08035A56
 status = "confirmed"
 notes = """Head of every app_main_loop pass: `ldr.w r0,[pc,..]` (= 0x2001BC0C, the USART1 handle). Hook site of the
-persist-settings / persist-pitchdown mods (verified by emulating the patched image: test_persist_settings.py)."""
+persist-settings mod (verified by emulating the patched image: test_persist_settings.py)."""
 
 [[label]]
 name = "pitchdown_mode_selector"
@@ -436,7 +436,7 @@ what = "flash 0x08059A54.. (appended trampolines)"
 by = "all mods; the patcher places them one after the other"
 [[allocation]]
 what = "RAM 0x2001FFF0..0x2001FFF7 (top of DTCM: magic + last saved settings byte; nothing in the image references it)"
-by = "persist-settings (and the superseded persist-pitchdown)"
+by = "persist-settings"
 [[allocation]]
 what = "EEPROM 0x1A..0x1B (unused by the stock firmware, see docs/eeprom-map.md)"
-by = "persist-settings (and the superseded persist-pitchdown, same format)"
+by = "persist-settings"

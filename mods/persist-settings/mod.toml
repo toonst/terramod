@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Toon Stegen
 #
 # Persist (1) the "A + tuning" pitch-down mode and (2) the MIDI output mode across power cycles.
-# Supersedes `persist-pitchdown` (same hook site, so the two cannot be combined; the EEPROM format is backward compatible).
+# Replaces the removed `persist-pitchdown` mod (pitch-down only); bytes saved by that mod load as "MIDI off".
 #
 # Why the stock firmware forgets the MIDI mode: it saves `ctx+0x1E8 & 0x33` to EEPROM[0x38] (MIDI channel bits only) and
 # the mode lives in bits 2-3 (0x0C: 0 = off, 4 = CC+notes..., 8, 0xC = MPE). The manual documents this: the output "returns to off" on power-up.

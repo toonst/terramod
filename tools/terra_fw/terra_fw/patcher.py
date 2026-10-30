@@ -17,6 +17,7 @@ Trampolines are appended to the end of the application image (4-byte aligned).
 Only the 4 bytes at `at` are modified; any remaining halves of displaced instructions stay in place and are never executed.
 """
 import hashlib
+import pathlib
 import tomllib
 from dataclasses import dataclass
 from typing import List
@@ -48,6 +49,11 @@ def _asm(ks: Ks, code: str, addr: int) -> bytes:
 def load_mod(path: str) -> dict:
     with open(path, "rb") as f:
         return tomllib.load(f)
+
+
+def all_mods(mods_dir) -> List[dict]:
+    """Every <mods_dir>/<id>/mod.toml, in id order."""
+    return [load_mod(p) for p in sorted(pathlib.Path(mods_dir).glob("*/mod.toml"))]
 
 
 def apply(smf: bytes, mods: List[dict]) -> (bytes, List[Placed]):

@@ -5,8 +5,8 @@ without ever losing the ability to go back to stock firmware.
 
 **Status (2026-10-29).** This was written before the first line of code; sections 1-4 keep the original reasoning, with corrections
 marked. Done so far: container/CRC/preset tooling with round-trip tests (Phase 1), a symbol map covering startup, audio path, sensors,
-MIDI/SysEx and EEPROM (Phase 2), and a Tier-2 patcher for hand-written Thumb trampolines (`terra-fw patch`) with three mods
-(`hold-midi`, `persist-settings`, superseded `persist-pitchdown`), all emulated against the real image. Not done: Tier-1 byte patches by
+MIDI/SysEx and EEPROM (Phase 2), and a Tier-2 patcher for hand-written Thumb trampolines (`terra-fw patch`) with two mods
+(`hold-midi`, `persist-settings`), all emulated against the real image. Not done: Tier-1 byte patches by
 symbol, C mods, modkit. Device results are recorded in [flashing-test-plan.md](flashing-test-plan.md); only the file-name pattern is
 recorded as verified on a Terra so far.
 

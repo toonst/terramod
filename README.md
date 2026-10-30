@@ -14,7 +14,7 @@ Tools, notes and a few mods for the **Soma Laboratory Terra** synthesizer. It le
 | Path | What |
 |---|---|
 | `tools/terra_fw/` | Python package + `terra-fw` CLI: container/CRC, preset (`.smp`) codec, patcher, emulator helper (`emu.py`) for testing mods |
-| `mods/` | Mods (a `mod.toml` per mod): `hold-midi` (Note Hold also holds the MIDI notes), `persist-settings` (pitch-down mode and MIDI mode survive power-off; supersedes `persist-pitchdown`) |
+| `mods/` | Mods (a `mod.toml` per mod): `hold-midi` (Note Hold also holds the MIDI notes), `persist-settings` (pitch-down mode and MIDI mode survive power-off) |
 | `symbols/terra_v1.7.toml` | Reverse-engineering notes: addresses, structs, findings for V1.7 |
 | `docs/` | `midi-sysex.md` (MIDI/SysEx internals), `eeprom-map.md` (what the firmware stores where), `bugs/` (analysis of fixed bugs), `mods-persist-settings.md`, `flashing-test-plan.md`, `PLAN.md` (roadmap), `ghidra_import.md` |
 | `ghidra/scripts/` | Ghidra scripts (SVD register labels, RAM image loader) |
@@ -49,7 +49,12 @@ uv run pytest                                            # sanity check (tests t
    uv run terra-fw patch firmware/TERRA_V1.7.smf dist mods/hold-midi/mod.toml --auto-name
    # -> dist/TERRA_V1.7_holdmidi/TERRA_V1.7_holdmidi.smf
    ```
-   Several mods can be combined: list more `mod.toml` files (overlapping hooks are rejected).
+   Several mods can be combined: list more `mod.toml` files (overlapping hooks are rejected). To include **all mods**, use
+   `--all` instead of mod files (run it from the repo root):
+   ```bash
+   uv run terra-fw patch firmware/TERRA_V1.7.smf dist --all --auto-name
+   # -> dist/TERRA_V1.7_holdmidi+persistsettings/TERRA_V1.7_holdmidi+persistsettings.smf
+   ```
 3. **Prepare the stick** as the manual says (p. 23): FAT32, 1-32 GB (USB 2.0 sticks are the safest), and **exactly one firmware file in
    the root**. Copy the *contents* of the output folder onto it.
    File names must look like `TERRA_V<version>_<suffix>.smf`: the updater recognises that pattern (a different prefix is ignored).
@@ -91,7 +96,9 @@ Rules of thumb:
 * keystone silently mis-assembles a backward `cbz`/`cbnz`: use `cmp` + `beq` instead.
 * Don't reuse RAM, EEPROM bytes or hook sites another mod already uses: the `[[allocation]]` entries in the symbol map list them
   (the patcher only detects two mods hooking the same address).
-* Run `uv run pytest`: `test_mods.py` builds every `mods/*/mod.toml` (even without the official firmware). For new hooks, also emulate
+* `patch --all` builds every mod in `mods/` into one image, so a new mod must combine with all the others. If it replaces an older
+  mod, delete the old one (git history keeps it).
+* Run `uv run pytest`: `test_mods.py` builds every `mods/*/mod.toml`, and the `--all` set together (even without the official firmware). For new hooks, also emulate
   the trampoline against the real image with `terra_fw.emu` (`tools/terra_fw/tests/test_persist_settings.py` is the example).
 
 ### Finding where to hook
@@ -107,6 +114,7 @@ uv run terra-fw info FILE            # verify checksum, describe an .smf/.smp
 uv run terra-fw unpack FILE OUT      # .smf -> raw image, .smp -> JSON
 uv run terra-fw pack SRC OUT --like ORIGINAL
 uv run terra-fw patch STOCK.smf OUT MOD.toml [MOD.toml ...] [--auto-name]
+uv run terra-fw patch STOCK.smf OUT --all [--auto-name]     # every mod in mods/
 uv run terra-fw padtest STOCK.smf OUT
 ```
 

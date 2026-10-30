@@ -5,8 +5,8 @@ Keeps two settings across power cycles that the stock V1.7 firmware forgets:
    the pitch-bender variants of two POLYPHONIC algorithms). The manual says it is not saved in presets.
 2. the MIDI output mode (off / CC + notes variants / MPE). The manual says the output returns to *off* at power-up.
 
-It supersedes `persist-pitchdown` (pitch-down only). Both use the same hook site, so the patcher refuses to combine them; values saved by
-`persist-pitchdown` load correctly (as "MIDI off").
+It replaces the earlier `persist-pitchdown` mod (pitch-down only, removed; see git history). Values saved by `persist-pitchdown` load
+correctly (as "MIDI off"), and its pitch-down behaviour is unchanged (compared by emulating both mods side by side).
 
 ## Firmware facts (V1.7)
 Symbols are in `symbols/terra_v1.7.toml`.

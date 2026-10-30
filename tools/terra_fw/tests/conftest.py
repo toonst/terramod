@@ -6,7 +6,8 @@ import pathlib
 import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
-MOD_FILES = sorted((ROOT / "mods").glob("*/mod.toml"))
+MODS_DIR = ROOT / "mods"
+MOD_FILES = sorted(MODS_DIR.glob("*/mod.toml"))
 
 
 def _official(name):
@@ -25,6 +26,11 @@ def stock_smf() -> bytes:
 @pytest.fixture(scope="session")
 def factory_smp() -> bytes:
     return _official("TERRA_0.smp")
+
+
+@pytest.fixture
+def mods_dir() -> pathlib.Path:
+    return MODS_DIR
 
 
 @pytest.fixture

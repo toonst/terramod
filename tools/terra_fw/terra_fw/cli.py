@@ -18,7 +18,9 @@ def main(argv=None):
     s.add_argument("src"); s.add_argument("out")
     s.add_argument("--like", required=True, help="original file to copy the header field from")
     s = sub.add_parser("patch", help="apply mod(s) to a stock .smf")
-    s.add_argument("smf"); s.add_argument("out", help="output .smf, or with --auto-name a directory"); s.add_argument("mods", nargs="+")
+    s.add_argument("smf"); s.add_argument("out", help="output .smf, or with --auto-name a directory")
+    s.add_argument("mods", nargs="*", help="mod.toml files (or --all)")
+    s.add_argument("--all", action="store_true", help="every mod in mods/ (run from the repo root)")
     s.add_argument("--auto-name", action="store_true",
                    help="write OUT/TERRA_V<fw>_<mod>[+<mod>]/TERRA_V<fw>_<mod>[+<mod>].smf (one firmware per USB-stick folder)")
     s = sub.add_parser("padtest", help="stock .smf + 64 bytes of 0xFF (tests that a longer image is accepted)")
@@ -39,7 +41,13 @@ def main(argv=None):
     elif a.cmd == "patch":
         from . import patcher
         import os
-        mods = [patcher.load_mod(m) for m in a.mods]
+        if a.all == bool(a.mods):
+            ap.error("patch needs mod.toml files or --all (not both)")
+        mods = patcher.all_mods("mods") if a.all else [patcher.load_mod(m) for m in a.mods]
+        if not mods:
+            ap.error("patch --all: no mods/*/mod.toml here (run it from the repo root)")
+        if a.all:
+            print("mods: " + ", ".join(m["mod"]["id"] for m in mods))
         out, placed = patcher.apply(open(a.smf, "rb").read(), mods)
         if a.auto_name:
             name = f"TERRA_V{mods[0]['mod']['fw_version']}_" + "+".join(m["mod"]["id"].replace("-", "") for m in mods)

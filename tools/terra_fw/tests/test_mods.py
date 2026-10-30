@@ -17,11 +17,12 @@ IMAGE_LEN = {"1.7": 236116}     # payload length of TERRA_V1.7.smf (symbols/terr
 SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
-def stand_in(mod):
-    payload = bytearray(b"\xff" * IMAGE_LEN[mod["mod"]["fw_version"]])
-    for h in mod["hook"]:
-        expect = bytes.fromhex(h["expect"])
-        payload[h["at"] - LOAD_BASE:h["at"] - LOAD_BASE + len(expect)] = expect
+def stand_in(*mods):
+    payload = bytearray(b"\xff" * IMAGE_LEN[mods[0]["mod"]["fw_version"]])
+    for mod in mods:
+        for h in mod["hook"]:
+            expect = bytes.fromhex(h["expect"])
+            payload[h["at"] - LOAD_BASE:h["at"] - LOAD_BASE + len(expect)] = expect
     return container.Container(b"....", bytes(payload)).to_bytes()
 
 
@@ -46,4 +47,16 @@ def test_builds_against_stand_in(mod_path):
     out, placed = patcher.apply(smf, [mod])
     assert [p.at for p in placed] == [h["at"] for h in mod["hook"]]
     assert all(p.size > 0 for p in placed)
+    container.parse(out)  # CRC valid
+
+
+def test_all_build_together(mods_dir):
+    """`patch --all`: the mods share no hook site and target the same firmware."""
+    mods = patcher.all_mods(mods_dir)
+    assert len({m["mod"]["fw_version"] for m in mods}) == 1
+    smf = stand_in(*mods)
+    for m in mods:
+        m["mod"]["targets"] = [hashlib.sha256(smf).hexdigest()]
+    out, placed = patcher.apply(smf, mods)
+    assert [p.at for p in placed] == [h["at"] for m in mods for h in m["hook"]]
     container.parse(out)  # CRC valid

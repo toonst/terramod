@@ -12,7 +12,7 @@ Derived from all 28 `eeprom_*` call sites (static) plus an emulated run of the b
 | `0x00` | 1 | last used preset index | `FUN_08038808` (preset save), config init |
 | `0x01` | 1 | master tune (signed) | main loop (`0x08036588`), config init |
 | `0x02..0x19` | 24 | sensor calibration (2 x 12 bytes, default `0x32`) | calibration routine `FUN_080330b4` (`0x080338E2`), config init |
-| `0x1A..0x1B` | 2 | **unused in V1.7** (zero after config init); used by the `persist-settings` mod (and the superseded `persist-pitchdown`, same format) | config init only (writes 0/0) |
+| `0x1A..0x1B` | 2 | **unused in V1.7** (zero after config init); used by the `persist-settings` mod | config init only (writes 0/0) |
 | `0x1C..0x1F` | 4 | magic `"SOMA"` (`0x414D4F53`), checked at boot; if wrong the block is re-initialised | config init |
 | `0x20..0x3F` | 32 | 16 x u16 thresholds (default 400) | calibration routine (`0x080338D0`), config init |
 | `0x38` | 1 | MIDI output mode/channel bits (`ctx+0x1E8 & 0x33`); written by the main loop (`0x080363E0`). It overlaps the threshold array: a firmware quirk, not ours | main loop |
